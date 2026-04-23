@@ -1,0 +1,23 @@
+using Fusion;
+using UnityEngine;
+
+public class PlayerCamera : NetworkBehaviour
+{
+    public Camera cam;
+    public AudioListener listener;
+
+    public override void Spawned()
+    {
+        if (HasInputAuthority)
+        {
+            cam.enabled = true;
+            listener.enabled = true;
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+        else
+        {
+            cam.enabled = false;
+            listener.enabled = false;
+        }
+    }
+}
