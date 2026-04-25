@@ -60,21 +60,16 @@
         "*.asset": "yaml",
         "*.meta": "yaml",
         "*.prefab": "yaml",
-<<<<<<< HEAD
-        "*.unity": "yaml",
-=======
-        "*.unity": "yaml"
->>>>>>> c4f9973 (commit)
+        "<<<<<<<HEAD*.unity": "yaml",
+        "=======*.unity": "yaml>>>>>>>c4f9973(commit)"
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-<<<<<<< HEAD
-    "dotnet.defaultSolution": "Unity_Juego.slnx",
-=======
-    "dotnet.defaultSolution": "UnityJuego.slnx",
->>>>>>> c4f9973 (commit)
-    "dotnet.enableWorkspaceBasedDevelopment": false
+    "<<<<<<<HEADdotnet.defaultSolution": "Unity_Juego.slnx",
+    "=======dotnet.defaultSolution": "UnityJuego.slnx",
+    ">>>>>>>c4f9973(commit)dotnet.enableWorkspaceBasedDevelopment": false,
+    "dotnet.defaultSolution": "unityjuego.slnx"
 }
