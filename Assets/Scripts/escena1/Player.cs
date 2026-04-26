@@ -10,6 +10,7 @@ public class Player : NetworkBehaviour
     
     // CLAVE: Sincroniza cuál fue la última pregunta que este jugador respondió
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
+    private int _lastDisplayedQuestionIndex = -1;
 
     [SerializeField] private Animator _animator;
     [SerializeField] private float _forwardSpeed = 8f;
@@ -51,6 +52,7 @@ public class Player : NetworkBehaviour
                     break;
 
                 case EPlayerState.Stunned:
+                    _cc.Velocity = Vector3.zero;
                     if (_stunTimer.Expired(Runner)) State = EPlayerState.Advancing;
                     break;
 
@@ -65,6 +67,8 @@ public class Player : NetworkBehaviour
     {
         float remainingTime = _gameManager.GetRemainingResponseTime();
         int currentQIndex = _gameManager.CurrentQuestionIndex;
+
+        if (currentQIndex < 0) return;
 
         // REGLA: Solo entramos en modo Responding si hay tiempo Y NO hemos respondido a esta pregunta aún
         if (remainingTime > 0 && LastAnsweredIndex != currentQIndex)
@@ -130,28 +134,41 @@ public class Player : NetworkBehaviour
         }
     }
 
-    public override void Render()
+public override void Render()
+{
+    if (!Object.HasInputAuthority) return;
+
+    if (_gameManager != null && _gameManager.Object.IsValid)
     {
-        if (!Object.HasInputAuthority) return;
+        bool isResponding = (State == EPlayerState.Responding);
+        Cursor.lockState = isResponding ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = isResponding;
 
-        // Control del Mouse y la UI
-        if (_gameManager != null && _gameManager.Object.IsValid)
+        if (State == EPlayerState.Responding)
         {
-            bool isResponding = (State == EPlayerState.Responding);
-            Cursor.lockState = isResponding ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = isResponding;
+            int currentIdx = _gameManager.CurrentQuestionIndex;
 
-            if (State == EPlayerState.Responding)
+            // SOLO intentar mostrar si el índice es distinto al último mostrado con éxito
+            if (_lastDisplayedQuestionIndex != currentIdx)
             {
-                Question q = QuestionManager.Instance.GetQuestion(_gameManager.CurrentQuestionIndex);
+                Question q = QuestionManager.Instance.GetQuestion(currentIdx);
+                
+                // CLAVE: Solo marcamos como "mostrado" si la pregunta NO es nula
                 if (q != null)
                 {
+                    _lastDisplayedQuestionIndex = currentIdx;
                     TriviaUI.Instance.ShowQuestion(q);
-                    TriviaUI.Instance.UpdateTimer(_gameManager.GetRemainingResponseTime());
                 }
             }
-            else
+            
+            // El timer se actualiza siempre en este estado
+            TriviaUI.Instance.UpdateTimer(_gameManager.GetRemainingResponseTime());
+        }
+        else
+        {
+            if (_lastDisplayedQuestionIndex != -1)
             {
+                _lastDisplayedQuestionIndex = -1;
                 TriviaUI.Instance.Hide();
             }
         }
@@ -164,4 +181,5 @@ public class Player : NetworkBehaviour
             _animator.SetFloat("Speed", speed);
         }
     }
+}
 }

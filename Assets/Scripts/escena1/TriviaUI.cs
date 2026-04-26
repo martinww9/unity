@@ -20,7 +20,6 @@ public class TriviaUI : MonoBehaviour
     {
         _panelPrincipal.SetActive(true);
         _preguntaText.text = q.text;
-        LastSelectedIndex = -1; // Resetear selección
 
         for (int i = 0; i < _opcionesTexts.Length; i++)
         {

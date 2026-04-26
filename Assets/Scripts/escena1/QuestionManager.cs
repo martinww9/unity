@@ -25,7 +25,8 @@ public class QuestionManager : NetworkBehaviour
     _questions = new Question[]
     {
         new Question { text = "¿Cuál es la capital de Francia?", options = new string[]{"París", "Londres", "Madrid", "Roma"}, correctAnswerIndex = 0 },
-        new Question { text = "¿2 + 2?", options = new string[]{"3", "4", "5", "6"}, correctAnswerIndex = 1 }
+        new Question { text = "¿2 + 2?", options = new string[]{"3", "4", "5", "6"}, correctAnswerIndex = 1 },
+        new Question { text = "¿Cuál es la capital de Francia?", options = new string[]{"París", "Londres", "Madrid", "Roma"}, correctAnswerIndex = 0 },
     };
     
     IsReady = true;
@@ -52,7 +53,8 @@ public class QuestionManager : NetworkBehaviour
 
     public Question GetQuestion(int index)
     {
-        if (_questions != null && index < _questions.Length)
+        // Añadir validación index >= 0
+        if (_questions != null && index >= 0 && index < _questions.Length)
             return _questions[index];
         return null;
     }

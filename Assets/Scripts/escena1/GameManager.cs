@@ -4,7 +4,7 @@ using UnityEngine;
 public class GameManager : NetworkBehaviour
 {
     [Networked] public TickTimer GlobalCycleTimer { get; set; }
-    [Networked] public int CurrentQuestionIndex { get; set; }
+    [Networked] public int CurrentQuestionIndex { get; set; } = -1; // Empezar en -1
     
     private const float CycleDuration = 15f;
     private const float ResponseWindow = 10f;
