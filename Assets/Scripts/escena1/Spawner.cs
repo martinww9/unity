@@ -112,6 +112,14 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
             _mouseButton0 = false;
         }
+
+        if (TriviaUI.Instance != null)
+            {
+        data.SelectedAnswerIndex = TriviaUI.Instance.LastSelectedIndex;
+        // Resetear después de enviarlo para no enviar la misma respuesta 60 veces por segundo*****
+        TriviaUI.Instance.LastSelectedIndex = -1; 
+        }
+
         input.Set(data);
     }
 
@@ -131,11 +139,12 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         if (_menuCamera != null) _menuCamera.SetActive(false);
         
         // Opcional: Liberar el cursor para que el jugador pueda moverse
-        if (runner.IsPlayer) 
+       /* if (runner.IsPlayer) 
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+        */
     }
     void INetworkRunnerCallbacks.OnSceneLoadStart(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

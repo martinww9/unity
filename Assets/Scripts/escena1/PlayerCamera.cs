@@ -1,62 +1,39 @@
-using Fusion;
 using UnityEngine;
-using Unity.Cinemachine;
-using UnityEngine.InputSystem;
+using UnityEngine.InputSystem; // Necesario para el nuevo sistema
 
-public class PlayerCamera : NetworkBehaviour
+public class PlayerCamera : MonoBehaviour
 {
-    [Header("Cinemachine 3 Cameras")]
-    public CinemachineCamera fpvCam;
-    public CinemachineCamera tpvCam;
+    [Header("Configuración")]
+    public Transform target;        
+    public float distance = 5.0f;    
+    public float sensitivity = 0.1f; // Sensibilidad (ajusta este valor si va muy rápido)
 
-    private bool _isFirstPerson = true;
+    [Header("Límites")]
+    public float minY = -20f;        
+    public float maxY = 80f;         
 
-    public override void Spawned()
+    private float _rotationX = 0f;
+    private float _rotationY = 0f;
+
+    void LateUpdate()
     {
-        if (HasInputAuthority)
-        {
-            UpdateCameraPriorities();
+        if (target == null) return;
 
-            // Opcional: Bloquear cursor para el juego
-            Cursor.lockState = CursorLockMode.Locked;
-        }
-        else
+        // Solo rotamos si el mouse está bloqueado (Modo Carrera)
+        if (Cursor.lockState == CursorLockMode.Locked && Mouse.current != null)
         {
-            // Si es otro jugador, bajo la prioridad de sus cámaras a 0 
-            // para que mi CinemachineBrain las ignore
-            fpvCam.Priority = 0;
-            tpvCam.Priority = 0;
-        }
-    }
+            // En el nuevo sistema usamos Mouse.current.delta
+            Vector2 mouseDelta = Mouse.current.delta.ReadValue();
 
-    // Lógica de cambio de vista (WASD ya funciona, ahora cambiamos prioridad)
-    private void UpdateCameraPriorities()
-    {
-        if (!HasInputAuthority) return;
-
-        if (_isFirstPerson)
-        {
-            fpvCam.Priority = 100;
-            tpvCam.Priority = 10;
+            _rotationX += mouseDelta.x * sensitivity;
+            _rotationY -= mouseDelta.y * sensitivity;
+            _rotationY = Mathf.Clamp(_rotationY, minY, maxY);
         }
-        else
-        {
-            fpvCam.Priority = 10;
-            tpvCam.Priority = 100;
-        }
-    }
 
-    void Update()
-    {
-        // Solo procesamos el input si somos el dueño del objeto
-        if (!HasInputAuthority) return;
+        Quaternion rotation = Quaternion.Euler(_rotationY, _rotationX, 0);
+        Vector3 position = target.position - (rotation * Vector3.forward * distance);
 
-        // Verificamos si la tecla V fue presionada en este frame
-        if (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame)
-        {
-            _isFirstPerson = !_isFirstPerson;
-            UpdateCameraPriorities();
-            Debug.Log($"Perspectiva cambiada: {(_isFirstPerson ? "Primera Persona" : "Tercera Persona")}");
-        }
+        transform.rotation = rotation;
+        transform.position = position;
     }
 }

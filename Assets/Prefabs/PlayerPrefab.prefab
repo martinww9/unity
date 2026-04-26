@@ -2008,7 +2008,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44939b6fff98847b6a86a33704714cf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  _prefabBall: {fileID: 3137299385504079128, guid: 727b52a58c385405dadc83a68dc50353, type: 3}
+  _State: 0
+  _animator: {fileID: 0}
 --- !u!114 &4484850726278966946
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2028,7 +2029,6 @@ MonoBehaviour:
   NetworkedBehaviours:
   - {fileID: 2786091899738909085}
   - {fileID: 4431703009941914023}
-  - {fileID: 2812128353925265149}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &2812128353925265149
 MonoBehaviour:
@@ -2042,8 +2042,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d407cfc2babc81ca88e023a5c7c4303, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCamera
-  fpvCam: {fileID: 6713447707724117321}
-  tpvCam: {fileID: 2979549940512794049}
+  target: {fileID: 0}
+  distance: 5
+  sensitivity: 3
+  minY: -20
+  maxY: 80
 --- !u!1 &2783084602543410309
 GameObject:
   m_ObjectHideFlags: 0
