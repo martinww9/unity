@@ -1,12 +1,14 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using Fusion;
 
 public class TriviaUI : MonoBehaviour
 {
     public static TriviaUI Instance;
 
     [Header("Referencias de UI")]
+    [SerializeField] private GameObject _panelLobby;
     [SerializeField] private GameObject _panelPrincipal;
     [SerializeField] private TMP_Text _preguntaText;
     [SerializeField] private TMP_Text[] _opcionesTexts; // Array de 4 textos
@@ -14,7 +16,18 @@ public class TriviaUI : MonoBehaviour
 
     [HideInInspector] public int LastSelectedIndex = -1;
 
+    [Header("Lobby")]
+    [SerializeField] private Transform _playerListContainer;
+    [SerializeField] private GameObject _playerEntryPrefab;
+    [SerializeField] private GameObject _botonStart; 
+
     private void Awake() => Instance = this;
+
+    public void StartGameUI()
+    {
+        _panelLobby.SetActive(false);
+        _panelPrincipal.SetActive(true);
+    }
 
     public void ShowQuestion(Question q)
     {
@@ -43,4 +56,20 @@ public class TriviaUI : MonoBehaviour
         LastSelectedIndex = index;
         Debug.Log("Opción seleccionada localmente: " + index);
     }
+
+    public void UpdateLobbyUI(NetworkRunner runner)
+{
+    // 1. Solo el Host ve el botón de Start
+    _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
+
+    // 2. Limpiar lista actual
+    foreach (Transform child in _playerListContainer) Destroy(child.gameObject);
+
+    // 3. Mostrar todos los jugadores conectados
+    foreach (var player in runner.ActivePlayers)
+    {
+        GameObject entry = Instantiate(_playerEntryPrefab, _playerListContainer);
+        entry.GetComponent<TMP_Text>().text = $"Jugador {player.PlayerId}";
+    }
+}
 }
