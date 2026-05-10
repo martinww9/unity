@@ -9,6 +9,9 @@
 **/.venv/
 **/storage/
 
+#VS Code
+.vscode/
+
 .utmp/
 /[Ll]ibrary/
 /[Tt]emp/
