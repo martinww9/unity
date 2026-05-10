@@ -11,7 +11,7 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _panelLobby;
     [SerializeField] private GameObject _panelPrincipal;
     [SerializeField] private TMP_Text _preguntaText;
-    [SerializeField] private TMP_Text[] _opcionesTexts; // Array de 4 textos
+    [SerializeField] private TMP_Text[] _opcionesTexts; 
     [SerializeField] private TMP_Text _timerText;
 
     [HideInInspector] public int LastSelectedIndex = -1;
@@ -21,7 +21,12 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _playerEntryPrefab;
     [SerializeField] private GameObject _botonStart; 
 
-    private void Awake() => Instance = this;
+    private void Awake() 
+    {
+        Instance = this;
+        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
+        if (_panelLobby != null) _panelLobby.SetActive(false);
+    }
 
     public void StartGameUI()
     {
@@ -59,6 +64,8 @@ public class TriviaUI : MonoBehaviour
 
     public void UpdateLobbyUI(NetworkRunner runner)
 {
+    if (_panelLobby != null) _panelLobby.SetActive(true);
+    
     // 1. Solo el Host ve el botón de Start
     _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
 

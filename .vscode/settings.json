@@ -71,5 +71,5 @@
     "<<<<<<<HEADdotnet.defaultSolution": "Unity_Juego.slnx",
     "=======dotnet.defaultSolution": "UnityJuego.slnx",
     ">>>>>>>c4f9973(commit)dotnet.enableWorkspaceBasedDevelopment": false,
-    "dotnet.defaultSolution": "unityjuego.slnx"
+    "dotnet.defaultSolution": "unity.slnx"
 }
