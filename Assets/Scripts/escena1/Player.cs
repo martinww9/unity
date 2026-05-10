@@ -27,11 +27,19 @@ public class Player : NetworkBehaviour
     {
         _gameManager = FindFirstObjectByType<GameManager>();
         
-        // Auto-asignación de cámara al aparecer
         if (Object.HasInputAuthority)
         {
-            var cam = Camera.main.GetComponent<PlayerCamera>();
-            if (cam != null) cam.target = this.transform;
+            // Buscamos la cámara en la escena
+            Camera mainCam = Camera.main;
+            if (mainCam != null)
+            {
+                PlayerCamera camScript = mainCam.GetComponent<PlayerCamera>();
+                if (camScript != null) 
+                {
+                    camScript.target = this.transform;
+                    Debug.Log("Cámara asignada al jugador local.");
+                }
+            }
         }
     }
 

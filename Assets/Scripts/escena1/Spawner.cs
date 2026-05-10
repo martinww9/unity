@@ -134,8 +134,15 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
             // Keep track of the player avatars for easy access
             _spawnedCharacters.Add(player, networkPlayerObject);
+            
+            if (QuestionManager.Instance != null && QuestionManager.Instance.IsReady)
+        {
+            QuestionManager.Instance.SincronizarConNuevoJugador(player);
+        }
         }
         if (TriviaUI.Instance != null) TriviaUI.Instance.UpdateLobbyUI(runner);
+
+
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
@@ -148,6 +155,13 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
+        if (!Application.isFocused) 
+    {
+        // Enviamos un input vacío para que el personaje se quede quieto pero la conexión siga viva
+        input.Set(new NetworkInputData()); 
+        return;
+    }
+    
         var data = new NetworkInputData();
         var keyboard = Keyboard.current;
         if (keyboard != null)
@@ -197,6 +211,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true; 
         if (_menuCanvas != null) _menuCanvas.SetActive(false);
+        if (_menuCamera != null) _menuCamera.SetActive(false);
     }
     void INetworkRunnerCallbacks.OnSceneLoadStart(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

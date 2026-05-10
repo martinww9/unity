@@ -10,28 +10,61 @@ public class GameManager : NetworkBehaviour
     
     [Networked] public bool IsMatchStarted { get; set; }
 
+    private ChangeDetector _changeDetector;
     private const float CycleDuration = 15f;
     private const float ResponseWindow = 10f;
 
     private void Awake()
     {
-        // Inicializar la instancia al despertar
         if (Instance == null) Instance = this;
+    }
+
+    public override void Spawned()
+    {
+        _changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
+    }
+
+    public override void Render()
+    {
+        // Actualizar el timer visual en cada frame para todos
+        if (IsMatchStarted && TriviaUI.Instance != null)
+        {
+            TriviaUI.Instance.UpdateTimer(GetRemainingResponseTime());
+        }
+
+        // Revisar qué variables han cambiado en la red
+        foreach (var change in _changeDetector.DetectChanges(this))
+        {
+            switch (change)
+            {
+                case nameof(IsMatchStarted):
+                    if (IsMatchStarted) TriviaUI.Instance.StartGameUI();
+                    break;
+                
+                case nameof(CurrentQuestionIndex):
+                    if (CurrentQuestionIndex >= 0)
+                    {
+                        // Pedimos la pregunta al QuestionManager y la mostramos
+                        var q = QuestionManager.Instance.GetQuestion(CurrentQuestionIndex);
+                        TriviaUI.Instance.ShowQuestion(q);
+                    }
+                    break;
+            }
+        }
     }
 
     public override void FixedUpdateNetwork()
     {
-
         if (Object.HasStateAuthority && IsMatchStarted)
         {
             if (GlobalCycleTimer.ExpiredOrNotRunning(Runner))
             {
                 GlobalCycleTimer = TickTimer.CreateFromSeconds(Runner, CycleDuration);
                 CurrentQuestionIndex++;
-                Debug.Log($"IA: Iniciando Pregunta: {CurrentQuestionIndex}");
             }
         }
     }
+
     public void UI_BotonIniciarPartida()
     {
         if (Object.HasStateAuthority && QuestionManager.Instance.IsReady)

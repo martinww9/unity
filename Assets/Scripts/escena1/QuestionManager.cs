@@ -34,14 +34,20 @@ public class QuestionManager : NetworkBehaviour
                 
                 foreach (var q in pool.questions)
                 {
-                RPC_SyncSingleQuestion(
-                                    q.id, 
-                                    q.text, 
-                                    q.options[0], q.options[1], q.options[2], q.options[3], 
-                                    q.correctAnswerIndex
-                );
+                    // Creamos variables temporales para las 4 opciones
+                    string o1 = q.options.Length > 0 ? q.options[0] : "";
+                    string o2 = q.options.Length > 1 ? q.options[1] : "";
+                    string o3 = q.options.Length > 2 ? q.options[2] : "";
+                    string o4 = q.options.Length > 3 ? q.options[3] : "";
+
+                    RPC_SyncSingleQuestion(
+                        q.id, 
+                        q.text, 
+                        o1, o2, o3, o4, // Enviamos las variables seguras
+                        q.correctAnswerIndex
+                    );
                 }
-         }
+          }
         }
     }
 
@@ -81,4 +87,59 @@ public class QuestionManager : NetworkBehaviour
             return _questions[index];
         return null;
     }
+
+public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
+    {
+        // Solo el Host tiene los datos del LLM y debe enviarlos
+        if (!Object.HasStateAuthority || !IsReady || _questions == null) return;
+
+        Debug.Log($"[Host] Sincronizando trivia con el jugador: {nuevoJugador.PlayerId}");
+
+        // 1. Enviamos señal de inicio con el total de preguntas
+        RPC_EnviarInicioATarget(nuevoJugador, _questions.Length);
+
+        // 2. Enviamos cada pregunta individualmente
+        foreach (var q in _questions)
+        {
+            RPC_EnviarPreguntaATarget(
+                nuevoJugador,
+                q.id,
+                q.text,
+                q.options[0], q.options[1], q.options[2], q.options[3],
+                q.correctAnswerIndex
+            );
+        }
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_EnviarInicioATarget([RpcTarget] PlayerRef target, int totalQuestions)
+    {
+        // Esta lógica solo se ejecuta en el cliente 'target'
+        _questionsList.Clear();
+        _questions = new Question[totalQuestions];
+        IsReady = false;
+        Debug.Log($"[Cliente] Recibiendo trivia dirigida. Total: {totalQuestions}");
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_EnviarPreguntaATarget([RpcTarget] PlayerRef target, string id, string text, string o1, string o2, string o3, string o4, int correct)
+    {
+        // Esta lógica solo se ejecuta en el cliente 'target'
+        Question q = new Question {
+            id = id,
+            text = text,
+            options = new string[] { o1, o2, o3, o4 },
+            correctAnswerIndex = correct
+        };
+
+        _questionsList.Add(q);
+
+        if (_questionsList.Count == _questions.Length)
+        {
+            _questions = _questionsList.ToArray();
+            IsReady = true;
+            Debug.Log("[Cliente] Trivia dirigida recibida y lista.");
+        }
+    }
+
 }
