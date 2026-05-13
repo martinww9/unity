@@ -7,8 +7,8 @@ public class GameManager : NetworkBehaviour
 
     [Networked] public TickTimer GlobalCycleTimer { get; set; }
     [Networked] public int CurrentQuestionIndex { get; set; } = -1;
-    
     [Networked] public bool IsMatchStarted { get; set; }
+    [Networked] public int FinishedPlayersCount { get; set; }
 
     private ChangeDetector _changeDetector;
     private const float CycleDuration = 15f;
@@ -79,6 +79,16 @@ public class GameManager : NetworkBehaviour
         {
             float elapsed = CycleDuration - (GlobalCycleTimer.RemainingTime(Runner) ?? 0);
             return Mathf.Max(0, ResponseWindow - elapsed);
+        }
+        return 0;
+    }
+
+    public int RegisterPlayerFinish()
+    {
+        if (Object.HasStateAuthority)
+        {
+            FinishedPlayersCount++;
+            return FinishedPlayersCount;
         }
         return 0;
     }

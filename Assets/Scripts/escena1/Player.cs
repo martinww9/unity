@@ -7,14 +7,11 @@ public class Player : NetworkBehaviour
 {
     [Networked] public EPlayerState State { get; set; }
     [Networked] private TickTimer _stunTimer { get; set; }
-    
-    // CLAVE: Sincroniza cuál fue la última pregunta que este jugador respondió
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
+    [Networked] public int PlayerRank { get; set; }
     private int _lastDisplayedQuestionIndex = -1;
-
     [SerializeField] private Animator _animator;
     [SerializeField] private float _forwardSpeed = 8f;
-
     private NetworkCharacterController _cc;
     private GameManager _gameManager;
 
@@ -97,14 +94,12 @@ public class Player : NetworkBehaviour
 
     private void HandleRespondingState(NetworkInputData data)
     {
-        // Solo si el input de red trae un índice válido (0,1,2,3)
         if (data.SelectedAnswerIndex != -1)
         {
             Question currentQ = QuestionManager.Instance.GetQuestion(_gameManager.CurrentQuestionIndex);
 
             if (currentQ != null)
             {
-                // BLOQUEO DE SEGURIDAD: Guardamos que este jugador ya respondió este ciclo
                 LastAnsweredIndex = _gameManager.CurrentQuestionIndex;
 
                 if (data.SelectedAnswerIndex == currentQ.correctAnswerIndex)
@@ -126,7 +121,6 @@ public class Player : NetworkBehaviour
     {
         if (data.Direction.sqrMagnitude > 0)
         {
-            // Movimiento relativo a la Main Camera
             Transform camTransform = Camera.main.transform;
             Vector3 forward = camTransform.forward;
             Vector3 right = camTransform.right;
@@ -156,12 +150,10 @@ public override void Render()
         {
             int currentIdx = _gameManager.CurrentQuestionIndex;
 
-            // SOLO intentar mostrar si el índice es distinto al último mostrado con éxito
             if (_lastDisplayedQuestionIndex != currentIdx)
             {
                 Question q = QuestionManager.Instance.GetQuestion(currentIdx);
                 
-                // CLAVE: Solo marcamos como "mostrado" si la pregunta NO es nula
                 if (q != null)
                 {
                     _lastDisplayedQuestionIndex = currentIdx;
@@ -190,4 +182,12 @@ public override void Render()
         }
     }
 }
+    public void FinishRace(int rank)
+    {
+        State = EPlayerState.Finished;
+        PlayerRank = rank;
+        Debug.Log($"¡Llegaste en la posición: {rank}!");
+        
+        //activar un panel de victoria en TriviaUI
+    }
 }
