@@ -56,25 +56,29 @@ def tarea_generar_preguntas():
         query_engine = idx.as_query_engine(similarity_top_k=8)
         
         prompt = """
-        Eres un experto en evaluación técnica. Genera 10 preguntas basadas en el PDF.
+        Actúa como el Profesor titular experto de la asignatura. Has leído el documento proporcionado sobre "Detección de Vulnerabilidades con LLMs" y debes evaluar a tus alumnos a través de un juego de trivia interactivo.
 
-        REGLAS CRÍTICAS DE TAMAÑO:
-        - El texto de la 'text' NO DEBE superar los 120 caracteres.
-        - Cada una de las 'options' NO DEBE superar los 40 caracteres.
-        - Sé muy conciso para evitar errores de red.
+        Tu tarea es generar exactamente 10 preguntas desafiantes basadas ÚNICAMENTE en la información de este documento.
 
-        DEBES devolver un objeto JSON:
+        REGLAS CRÍTICAS (Si no las cumples, el sistema del juego fallará):
+        1. LONGITUD DE PREGUNTA: El 'text' NO puede superar los 120 caracteres.
+        2. LONGITUD DE OPCIONES: Debes crear exactamente 4 'options'. Ninguna opción debe superar los 45 caracteres.
+        3. DIFICULTAD: Crea 1 respuesta correcta y 3 distractores (respuestas incorrectas) que suenen creíbles y técnicas.
+        4. ÍNDICE: El 'correctAnswerIndex' debe ser un número entero (0, 1, 2 o 3) apuntando a la opción correcta.
+
+        ESTRUCTURA OBLIGATORIA:
+        DEBES devolver ÚNICAMENTE un objeto JSON válido. No incluyas saludos, confirmaciones, ni texto en markdown fuera del JSON. Utiliza exactamente este formato:
+
         {
-        "questions": [
+          "questions": [
             {
-            "id": "string único corto",
-            "text": "pregunta corta",
-            "options": ["opt1", "opt2", "opt3", "opt4"],
-            "correctAnswerIndex": número del 0 al 3
+              "id": "q1_ejemplo",
+              "text": "¿Cuál es la principal ventaja de usar un LLM para analizar código fuente?",
+              "options": ["Velocidad de ejecución", "Comprensión del contexto", "Menor uso de memoria", "Reemplazo del compilador"],
+              "correctAnswerIndex": 1
             }
-        ]
+          ]
         }
-        Responde solo con el JSON validado.
         """
         
         response = query_engine.query(prompt)
