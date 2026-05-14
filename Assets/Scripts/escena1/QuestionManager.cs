@@ -21,13 +21,64 @@ public class QuestionManager : NetworkBehaviour
         if (Object.HasStateAuthority)
         {
             // Iniciamos la nueva secuencia de descarga en dos pasos
-            StartCoroutine(GenerateAndDownloadQuestions());
+            StartCoroutine(CheckExistingQuestions());
         }
     }
 
     public void RetryConnection()
     {
         if (Object.HasStateAuthority) StartCoroutine(GenerateAndDownloadQuestions());
+    }
+
+    public void RequestNewGeneration()
+    {
+        if (Object.HasStateAuthority)
+        {
+            IsReady = false;
+            StartCoroutine(GenerateAndDownloadQuestions());
+        }
+    }
+
+    private void SincronizarPreguntas(QuestionPool pool)
+    {
+        RPC_StartSync(pool.questions.Length);
+        foreach (var q in pool.questions)
+        {
+            string o1 = q.options.Length > 0 ? q.options[0] : "";
+            string o2 = q.options.Length > 1 ? q.options[1] : "";
+            string o3 = q.options.Length > 2 ? q.options[2] : "";
+            string o4 = q.options.Length > 3 ? q.options[3] : "";
+            RPC_SyncSingleQuestion(q.id, q.text, o1, o2, o3, o4, q.correctAnswerIndex);
+        }
+    }
+
+    IEnumerator CheckExistingQuestions()
+    {
+        Debug.Log("IA: Verificando si existen preguntas previas...");
+        using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
+        {
+            yield return webRequest.SendWebRequest();
+            
+            if (webRequest.result == UnityWebRequest.Result.Success)
+            {
+                QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
+                
+                if (pool.status == "completed" && pool.questions != null && pool.questions.Length > 0)
+                {
+                    Debug.Log("IA: Se encontraron preguntas existentes. Cargando...");
+                    SincronizarPreguntas(pool);
+                }
+                else
+                {
+                    Debug.Log("IA: No hay preguntas listas. Esperando orden de generación.");
+                    if (TriviaUI.Instance != null) TriviaUI.Instance.ShowGenerateButton();
+                }
+            }
+            else
+            {
+                if (TriviaUI.Instance != null) TriviaUI.Instance.OnConnectionError();
+            }
+        }
     }
 
     IEnumerator GenerateAndDownloadQuestions()

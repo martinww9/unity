@@ -21,12 +21,50 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _playerEntryPrefab;
     [SerializeField] private GameObject _botonStart;
     [SerializeField] private GameObject _botonRestartServer;
-
+    [SerializeField] private GameObject _botonGenerarNuevas;
+    
     private void Awake() 
     {
         Instance = this;
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLobby != null) _panelLobby.SetActive(false);
+    }
+
+    private void Start()
+    {
+        if (_botonStart != null) _botonStart.SetActive(false);
+        if (_botonRestartServer != null) _botonRestartServer.SetActive(false);
+        if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(false);
+    }
+
+    public void ShowGenerateButton()
+    {
+        if (_botonGenerarNuevas != null)
+        {
+            _botonGenerarNuevas.SetActive(true);
+            TMP_Text btnText = _botonGenerarNuevas.GetComponentInChildren<TMP_Text>();
+            if (btnText != null) btnText.text = "Generar Preguntas (IA)";
+        }
+    }
+
+    public void UI_BotonGenerarNuevas()
+    {
+        // Añadimos las validaciones de null para que no haya crasheos
+        if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(false);
+        
+        if (_botonStart != null)
+        {
+            _botonStart.SetActive(true);
+            
+            // Bloqueamos el de Start temporalmente mientras la IA piensa
+            Button btn = _botonStart.GetComponent<Button>();
+            if (btn != null) btn.interactable = false;
+            
+            TMP_Text btnText = _botonStart.GetComponentInChildren<TMP_Text>();
+            if (btnText != null) btnText.text = "IA Pensando...";
+        }
+
+        if (QuestionManager.Instance != null) QuestionManager.Instance.RequestNewGeneration();
     }
 
     public void StartGameUI()
@@ -68,7 +106,10 @@ public class TriviaUI : MonoBehaviour
         if (_panelLobby != null) _panelLobby.SetActive(true);
         
         // 1. Solo el Host ve el botón de Start
-        _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
+        if (_botonStart != null)
+        {
+            _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
+        }
 
         // 2. Limpiar lista actual
         foreach (Transform child in _playerListContainer) Destroy(child.gameObject);
@@ -80,6 +121,7 @@ public class TriviaUI : MonoBehaviour
             entry.GetComponent<TMP_Text>().text = $"Jugador {player.PlayerId}";
         }
     }
+    
     public void OnConnectionError()
     {
         if (_botonStart != null) _botonStart.SetActive(false);
@@ -92,12 +134,14 @@ public class TriviaUI : MonoBehaviour
         if (_botonStart != null)
         {
             _botonStart.SetActive(true);
-            UnityEngine.UI.Button btn = _botonStart.GetComponent<UnityEngine.UI.Button>();
+            Button btn = _botonStart.GetComponent<Button>();
             if (btn != null) btn.interactable = true;
             
             TMP_Text btnText = _botonStart.GetComponentInChildren<TMP_Text>();
             if (btnText != null) btnText.text = "Iniciar Partida";
         }
+        // También mostramos el de generar nuevas por si quieren cambiar la trivia actual
+        if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(true);
     }
 
     // Función 3: Al hacer clic en el botón de reintentar
