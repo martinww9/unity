@@ -11,54 +11,96 @@ public class QuestionManager : NetworkBehaviour
     private Question[] _questions;
     public bool IsReady { get; private set; }
 
+    // Usamos la ruta base de la API
+    private const string BASE_URL = "http://localhost:5000/api";
+
     private void Awake() => Instance = this;
 
     public override void Spawned()
     {   
-        if (Object.HasStateAuthority){
-        StartCoroutine(DownloadQuestions());
+        if (Object.HasStateAuthority)
+        {
+            // Iniciamos la nueva secuencia de descarga en dos pasos
+            StartCoroutine(GenerateAndDownloadQuestions());
         }
     }
 
-    IEnumerator DownloadQuestions()
+    public void RetryConnection()
     {
-        string url = "http://localhost:5000/api/get-questions"; 
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
+        if (Object.HasStateAuthority) StartCoroutine(GenerateAndDownloadQuestions());
+    }
+
+    IEnumerator GenerateAndDownloadQuestions()
+    {
+        // PASO 1: Darle la orden a Python (Flask) para que empiece a pensar
+        using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/generate-questions"))
         {
             yield return webRequest.SendWebRequest();
-            if (webRequest.result == UnityWebRequest.Result.Success)
+            if (webRequest.result != UnityWebRequest.Result.Success)
             {
-                Debug.Log("Preguntas descargadas exitosamente.");
-                QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
-                RPC_StartSync(pool.questions.Length);
+                Debug.LogError("Error al contactar a la IA: " + webRequest.error);
                 
-                foreach (var q in pool.questions)
-                {
-                    // Creamos variables temporales para las 4 opciones
-                    string o1 = q.options.Length > 0 ? q.options[0] : "";
-                    string o2 = q.options.Length > 1 ? q.options[1] : "";
-                    string o3 = q.options.Length > 2 ? q.options[2] : "";
-                    string o4 = q.options.Length > 3 ? q.options[3] : "";
+                // Si Flask está apagado, avisamos a la UI para mostrar el botón Reintentar
+                if (TriviaUI.Instance != null) TriviaUI.Instance.OnConnectionError();
+                yield break;
+            }
+            Debug.Log("IA: Generación iniciada en el servidor...");
+        }
 
-                    RPC_SyncSingleQuestion(
-                        q.id, 
-                        q.text, 
-                        o1, o2, o3, o4, // Enviamos las variables seguras
-                        q.correctAnswerIndex
-                    );
+        // PASO 2: Preguntar periódicamente si ya terminó (Polling)
+        bool finished = false;
+        while (!finished)
+        {
+            yield return new WaitForSeconds(3f); // Esperamos 3 segundos entre intentos
+
+            using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
+            {
+                yield return webRequest.SendWebRequest();
+                
+                if (webRequest.result == UnityWebRequest.Result.Success)
+                {
+                    QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
+                    
+                    if (pool.status == "completed" && pool.questions != null)
+                    {
+                        Debug.Log("IA: ¡Preguntas listas y descargadas!");
+                        finished = true; 
+                        
+                        RPC_StartSync(pool.questions.Length);
+                        foreach (var q in pool.questions)
+                        {
+                            // Creamos variables temporales para las 4 opciones de forma segura
+                            string o1 = q.options.Length > 0 ? q.options[0] : "";
+                            string o2 = q.options.Length > 1 ? q.options[1] : "";
+                            string o3 = q.options.Length > 2 ? q.options[2] : "";
+                            string o4 = q.options.Length > 3 ? q.options[3] : "";
+
+                            RPC_SyncSingleQuestion(q.id, q.text, o1, o2, o3, o4, q.correctAnswerIndex);
+                        }
+                    }
+                    else if (pool.status == "error")
+                    {
+                        Debug.LogError("IA: Hubo un error procesando el PDF en Ollama.");
+                        if (TriviaUI.Instance != null) TriviaUI.Instance.OnConnectionError();
+                        finished = true; 
+                    }
+                    else
+                    {
+                        Debug.Log("IA: Generando... por favor espere.");
+                    }
                 }
-          }
+            }
         }
     }
-
+    
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        public void RPC_StartSync(int totalQuestions)
-        {
-            _questionsList.Clear();
-            _questions = new Question[totalQuestions];
-            IsReady = false;
-            Debug.Log($"IA: Iniciando recepción de {totalQuestions} preguntas...");
-        }
+    public void RPC_StartSync(int totalQuestions)
+    {
+        _questionsList.Clear();
+        _questions = new Question[totalQuestions];
+        IsReady = false;
+        Debug.Log($"IA: Iniciando recepción de {totalQuestions} preguntas...");
+    }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
     public void RPC_SyncSingleQuestion(string id, string text, string o1, string o2, string o3, string o4, int correct)
@@ -77,6 +119,9 @@ public class QuestionManager : NetworkBehaviour
             _questions = _questionsList.ToArray();
             IsReady = true;
             Debug.Log("Trivia sincronizada.");
+            
+            // Avisamos a la UI para habilitar el botón de "Iniciar Partida"
+            if (TriviaUI.Instance != null) TriviaUI.Instance.OnQuestionsReady();
         }
     }
 
@@ -88,7 +133,7 @@ public class QuestionManager : NetworkBehaviour
         return null;
     }
 
-public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
+    public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
     {
         // Solo el Host tiene los datos del LLM y debe enviarlos
         if (!Object.HasStateAuthority || !IsReady || _questions == null) return;
@@ -101,11 +146,16 @@ public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
         // 2. Enviamos cada pregunta individualmente
         foreach (var q in _questions)
         {
+            string o1 = q.options.Length > 0 ? q.options[0] : "";
+            string o2 = q.options.Length > 1 ? q.options[1] : "";
+            string o3 = q.options.Length > 2 ? q.options[2] : "";
+            string o4 = q.options.Length > 3 ? q.options[3] : "";
+
             RPC_EnviarPreguntaATarget(
                 nuevoJugador,
                 q.id,
                 q.text,
-                q.options[0], q.options[1], q.options[2], q.options[3],
+                o1, o2, o3, o4,
                 q.correctAnswerIndex
             );
         }
@@ -139,7 +189,9 @@ public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
             _questions = _questionsList.ToArray();
             IsReady = true;
             Debug.Log("[Cliente] Trivia dirigida recibida y lista.");
+            
+            // Si el jugador acaba de conectarse y la trivia ya está cargada, actualizamos su UI
+            if (TriviaUI.Instance != null) TriviaUI.Instance.OnQuestionsReady();
         }
     }
-
 }

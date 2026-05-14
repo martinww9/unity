@@ -19,7 +19,8 @@ public class TriviaUI : MonoBehaviour
     [Header("Lobby")]
     [SerializeField] private Transform _playerListContainer;
     [SerializeField] private GameObject _playerEntryPrefab;
-    [SerializeField] private GameObject _botonStart; 
+    [SerializeField] private GameObject _botonStart;
+    [SerializeField] private GameObject _botonRestartServer;
 
     private void Awake() 
     {
@@ -63,20 +64,53 @@ public class TriviaUI : MonoBehaviour
     }
 
     public void UpdateLobbyUI(NetworkRunner runner)
-{
-    if (_panelLobby != null) _panelLobby.SetActive(true);
-    
-    // 1. Solo el Host ve el botón de Start
-    _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
-
-    // 2. Limpiar lista actual
-    foreach (Transform child in _playerListContainer) Destroy(child.gameObject);
-
-    // 3. Mostrar todos los jugadores conectados
-    foreach (var player in runner.ActivePlayers)
     {
-        GameObject entry = Instantiate(_playerEntryPrefab, _playerListContainer);
-        entry.GetComponent<TMP_Text>().text = $"Jugador {player.PlayerId}";
+        if (_panelLobby != null) _panelLobby.SetActive(true);
+        
+        // 1. Solo el Host ve el botón de Start
+        _botonStart.SetActive(runner.IsServer || runner.IsSharedModeMasterClient);
+
+        // 2. Limpiar lista actual
+        foreach (Transform child in _playerListContainer) Destroy(child.gameObject);
+
+        // 3. Mostrar todos los jugadores conectados
+        foreach (var player in runner.ActivePlayers)
+        {
+            GameObject entry = Instantiate(_playerEntryPrefab, _playerListContainer);
+            entry.GetComponent<TMP_Text>().text = $"Jugador {player.PlayerId}";
+        }
     }
-}
+    public void OnConnectionError()
+    {
+        if (_botonStart != null) _botonStart.SetActive(false);
+        if (_botonRestartServer != null) _botonRestartServer.SetActive(true);
+    }
+
+    // Función 2: Cuando la IA ya tiene las preguntas listas
+    public void OnQuestionsReady()
+    {
+        if (_botonStart != null)
+        {
+            _botonStart.SetActive(true);
+            UnityEngine.UI.Button btn = _botonStart.GetComponent<UnityEngine.UI.Button>();
+            if (btn != null) btn.interactable = true;
+            
+            TMP_Text btnText = _botonStart.GetComponentInChildren<TMP_Text>();
+            if (btnText != null) btnText.text = "Iniciar Partida";
+        }
+    }
+
+    // Función 3: Al hacer clic en el botón de reintentar
+    public void UI_BotonRestartServer()
+    {
+        if (_botonRestartServer != null) _botonRestartServer.SetActive(false);
+        if (_botonStart != null)
+        {
+            _botonStart.SetActive(true);
+            TMP_Text btnText = _botonStart.GetComponentInChildren<TMP_Text>();
+            if (btnText != null) btnText.text = "IA Pensando...";
+        }
+
+        if (QuestionManager.Instance != null) QuestionManager.Instance.RetryConnection();
+    }
 }

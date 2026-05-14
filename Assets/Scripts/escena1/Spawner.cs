@@ -156,30 +156,62 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
         if (!Application.isFocused) 
-    {
-        // Enviamos un input vacío para que el personaje se quede quieto pero la conexión siga viva
-        input.Set(new NetworkInputData()); 
-        return;
-    }
+        {
+            // Enviamos un input vacío para que el personaje se quede quieto pero la conexión siga viva
+            input.Set(new NetworkInputData()); 
+            return;
+        }
     
         var data = new NetworkInputData();
         var keyboard = Keyboard.current;
+        var mouse = Mouse.current;
+
         if (keyboard != null)
         {
+            // 1. Movimiento WASD
             if (keyboard.wKey.isPressed) data.Direction += Vector3.forward;
             if (keyboard.sKey.isPressed) data.Direction += Vector3.back;
             if (keyboard.aKey.isPressed) data.Direction += Vector3.left;
             if (keyboard.dKey.isPressed) data.Direction += Vector3.right;
             
+            // Clic (Lo que ya tenías)
             data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
             _mouseButton0 = false;
+
+            // 2. Lógica del botón ALT para el cursor
+            if (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed)
+            {
+                // Si mantenemos ALT: Mostramos el cursor y frenamos la cámara
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                data.lookRotationDeltaX = 0f;
+                data.lookRotationDeltaY = 0f;
+            }
+            else
+            {
+                // Si soltamos ALT: Ocultamos el cursor y capturamos el ratón
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+
+                if (mouse != null)
+                {
+                    // Leemos el movimiento (delta) del ratón con el Nuevo Input System
+                    Vector2 mouseDelta = mouse.delta.ReadValue();
+                    
+                    // Nota: Multiplicamos por un valor pequeño (ej. 0.1f) para que la 
+                    // sensibilidad inicial no sea extremadamente alta
+                    data.lookRotationDeltaX = mouseDelta.x * 0.1f;
+                    data.lookRotationDeltaY = mouseDelta.y * 0.1f;
+                }
+            }
         }
 
+        // 3. Lógica de Trivia (Se mantiene igual)
         if (TriviaUI.Instance != null)
-            {
-        data.SelectedAnswerIndex = TriviaUI.Instance.LastSelectedIndex;
-        // Resetear después de enviarlo para no enviar la misma respuesta 60 veces por segundo*****
-        TriviaUI.Instance.LastSelectedIndex = -1; 
+        {
+            data.SelectedAnswerIndex = TriviaUI.Instance.LastSelectedIndex;
+            // Resetear después de enviarlo para no enviar la misma respuesta 60 veces por segundo
+            TriviaUI.Instance.LastSelectedIndex = -1; 
         }
 
         input.Set(data);

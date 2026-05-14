@@ -12,5 +12,6 @@ public class Question
 [Serializable]
 public class QuestionPool
 {
+    public string status;
     public Question[] questions;
 }
