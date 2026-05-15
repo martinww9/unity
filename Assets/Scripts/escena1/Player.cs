@@ -15,7 +15,8 @@ public class Player : NetworkBehaviour
 
     private int _lastDisplayedQuestionIndex = -1;
     [SerializeField] private Animator _animator;
-    [SerializeField] private float _forwardSpeed = 8f;
+    [SerializeField] private float _forwardSpeed = 12f;
+    [SerializeField] private float _sprintSpeed = 20f;
     
     [Header("Configuración de Cámara")]
     [SerializeField] private Transform _cameraPivot; // ¡Asegúrate de asignar este objeto vacío en el Inspector!
@@ -49,24 +50,24 @@ public class Player : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
-        if (State == EPlayerState.Finished || _gameManager == null) return;
+        if (_gameManager == null) return; // Quitamos el "State == Finished" de aquí
 
-        // 1. Lógica de Transición Sincronizada
-        CheckGlobalCycle();
+        // 1. Lógica de Transición Sincronizada (SOLO si no hemos terminado)
+        if (State != EPlayerState.Finished)
+        {
+            CheckGlobalCycle();
+        }
 
         // 2. Input y Acciones
         if (GetInput(out NetworkInputData data))
         {
             // -- ROTACIÓN DE CÁMARA --
-            // Solo rotamos si NO estamos respondiendo una pregunta.
             if (State != EPlayerState.Responding)
             {
-                // Eje X (Izquierda/Derecha): Rota todo el cuerpo del personaje
                 transform.Rotate(0, data.lookRotationDeltaX * mouseSensitivity, 0);
 
-                // Eje Y (Arriba/Abajo): Rota solo la cámara
                 _pitch -= data.lookRotationDeltaY * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -85f, 85f); // Bloqueamos para no rompernos el cuello
+                _pitch = Mathf.Clamp(_pitch, -85f, 85f); 
                 
                 if (_cameraPivot != null)
                     _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
@@ -85,6 +86,7 @@ public class Player : NetworkBehaviour
                     break;
 
                 case EPlayerState.Advancing:
+                case EPlayerState.Finished: // <--- AÑADIDO: Permitimos movimiento aunque haya terminado
                     HandleMovement(data);
                     break;
             }
@@ -108,8 +110,10 @@ public class Player : NetworkBehaviour
         
         if (remainingTime <= 0 && State == EPlayerState.Responding)
         {
-            State = EPlayerState.Advancing;
+            State = EPlayerState.Stunned;
+            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f); // 2 segundos de penalización
             LastAnsweredIndex = currentQIndex; 
+            Debug.Log("SERVIDOR: Se acabó el tiempo. Jugador aturdido.");
         }
     }
 
@@ -140,16 +144,26 @@ public class Player : NetworkBehaviour
 
     private void HandleMovement(NetworkInputData data)
     {
+        // 1. Iniciamos la dirección en cero (por si no estamos tocando nada)
+        Vector3 moveDir = Vector3.zero;
+
         if (data.Direction.sqrMagnitude > 0)
         {
-            // Como el ratón ya rota el cuerpo (transform.forward), el movimiento es muy simple:
-            Vector3 moveDir = (transform.forward * data.Direction.z) + (transform.right * data.Direction.x);
+            // Mantenemos tu lógica para saber hacia dónde mira la cámara
+            moveDir = (transform.forward * data.Direction.z) + (transform.right * data.Direction.x);
             moveDir.Normalize();
-
-            _cc.Move(moveDir * _forwardSpeed * Runner.DeltaTime);
-            
-            // Eliminamos el Slerp() que tenías antes porque ahora miramos siempre hacia donde apunta la cámara
         }
+
+        // 2. Elegimos la velocidad basada en si apretamos Shift en la red
+        float currentSpeed = data.Buttons.IsSet(NetworkInputData.SprintButton) ? _sprintSpeed : _forwardSpeed;
+
+        // 3. Le asignamos la nueva velocidad máxima al controlador
+        _cc.maxSpeed = currentSpeed; 
+        // Nota: Si Unity te da error por "maxSpeed", escríbelo con M mayúscula: _cc.MaxSpeed = currentSpeed;
+
+        // 4. Movemos al personaje pasándole SOLO la dirección.
+        // Fusion se encarga de aplicar el DeltaTime y la velocidad máxima internamente.
+        _cc.Move(moveDir);
     }
 
     public override void Render()
@@ -158,35 +172,36 @@ public class Player : NetworkBehaviour
 
         if (_gameManager != null && _gameManager.Object.IsValid)
         {
+            // --- CONTROL DEL CURSOR ---
             bool isResponding = (State == EPlayerState.Responding);
             
-            // Verificamos si estamos presionando la tecla ALT usando el Nuevo Input System
             bool isAltPressed = UnityEngine.InputSystem.Keyboard.current != null && 
                                 (UnityEngine.InputSystem.Keyboard.current.leftAltKey.isPressed || 
                                  UnityEngine.InputSystem.Keyboard.current.rightAltKey.isPressed);
 
-            // CONTROL DEL CURSOR: Se libera si estamos respondiendo, si terminamos, o si presionamos ALT
-            bool shouldUnlockCursor = isResponding || isAltPressed || (State == EPlayerState.Finished);
+            bool shouldUnlockCursor = isResponding || isAltPressed;
             
             Cursor.lockState = shouldUnlockCursor ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = shouldUnlockCursor;
 
-            // CONTROL DE LA UI DE TRIVIA
-            if (isResponding)
+            if (_gameManager.FinishedPlayersCount > 0)
+            {
+                TriviaUI.Instance.UpdatePodiumLive();
+            }
+
+            // --- CONTROL DE LA UI DE TRIVIA (Solo si no hemos terminado) ---
+            if (isResponding && State != EPlayerState.Finished)
             {
                 int currentIdx = _gameManager.CurrentQuestionIndex;
-
                 if (_lastDisplayedQuestionIndex != currentIdx)
                 {
                     Question q = QuestionManager.Instance.GetQuestion(currentIdx);
-                    
                     if (q != null)
                     {
                         _lastDisplayedQuestionIndex = currentIdx;
                         TriviaUI.Instance.ShowQuestion(q);
                     }
                 }
-                
                 TriviaUI.Instance.UpdateTimer(_gameManager.GetRemainingResponseTime());
             }
             else
@@ -202,8 +217,35 @@ public class Player : NetworkBehaviour
             if (_animator != null)
             {
                 _animator.SetBool("isStunned", State == EPlayerState.Stunned);
-                float speed = (State == EPlayerState.Advancing) ? 1f : 0f;
+                float speed = (State == EPlayerState.Advancing || State == EPlayerState.Finished) ? 1f : 0f;
                 _animator.SetFloat("Speed", speed);
+            }
+
+            // --- NUEVO: CONTROL DE UI POST-CARRERA ---
+            if (State == EPlayerState.Finished)
+            {
+                if (_gameManager.IsRaceOver)
+                {
+                    TriviaUI.Instance.ShowPodium(); // Todos llegaron
+                }
+                else
+                {
+                    TriviaUI.Instance.ShowWaiting(); // Faltan jugadores
+                }
+                if (State == EPlayerState.Responding)
+                {
+                    int currentIdx = _gameManager.CurrentQuestionIndex;
+                    if (_lastDisplayedQuestionIndex != currentIdx)
+                    {
+                        _lastDisplayedQuestionIndex = currentIdx;
+                        var q = QuestionManager.Instance.GetQuestion(currentIdx);
+                        if (q != null) TriviaUI.Instance.ShowQuestion(q);
+                    }
+                }
+                else
+                {
+                    TriviaUI.Instance.Hide();
+                }
             }
         }
     }

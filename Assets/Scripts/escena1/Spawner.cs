@@ -26,7 +26,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     [SerializeField] private GameObject _roomListPanel;
     [SerializeField] private Transform _roomListContent;
     [SerializeField] private GameObject _roomButtonPrefab; // Un botón con un script simple para unirse
-
+    
+    [Header("Configuración del Mapa")]
+    [SerializeField] private Transform[] _spawnPoints;
 
     private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
     private NetworkRunner _runner;
@@ -129,20 +131,32 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     {
         if (runner.IsServer)
         {
-            // Create a unique position for the player
-            Vector3 spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 1, 0);
-            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
-            // Keep track of the player avatars for easy access
+            // 1. Calculamos dónde aparecerá el jugador basado en los puntos que crees en Unity
+            Vector3 spawnPosition = Vector3.zero;
+            Quaternion spawnRotation = Quaternion.identity;
+
+            if (_spawnPoints != null && _spawnPoints.Length > 0)
+            {
+                int index = player.RawEncoded % _spawnPoints.Length;
+                spawnPosition = _spawnPoints[index].position;
+                spawnRotation = _spawnPoints[index].rotation;
+            }
+            else
+            {
+                // Respaldo por si olvidas asignar los puntos en el Inspector
+                spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 0.001f, 0);
+            }
+
+            // 2. Hacemos spawn
+            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, spawnRotation, player);
             _spawnedCharacters.Add(player, networkPlayerObject);
             
             if (QuestionManager.Instance != null && QuestionManager.Instance.IsReady)
-        {
-            QuestionManager.Instance.SincronizarConNuevoJugador(player);
-        }
+            {
+                QuestionManager.Instance.SincronizarConNuevoJugador(player);
+            }
         }
         if (TriviaUI.Instance != null) TriviaUI.Instance.UpdateLobbyUI(runner);
-
-
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
@@ -177,7 +191,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             // Clic (Lo que ya tenías)
             data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
             _mouseButton0 = false;
-
+            
+            data.Buttons.Set(NetworkInputData.SprintButton, keyboard.leftShiftKey.isPressed);
+            
             // 2. Lógica del botón ALT para el cursor
             if (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed)
             {

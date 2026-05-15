@@ -14,76 +14,132 @@ from llama_index.llms.ollama import Ollama
 
 app = Flask(__name__)
 
-# Configuración de Ollama
-llm = Ollama(
-    model="llama3.1:latest", 
-    request_timeout=600.0,
-    temperature=0.3,
-    format="json", 
-    additional_kwargs={"num_ctx": 8192} 
-)
-Settings.embed_model = OllamaEmbedding(model_name="nomic-embed-text")
-Settings.llm = llm
+def configurar_modelos():
+    """Configura los modelos solo una vez en el hilo principal."""
+    print("[1/4] Configurando modelo LLM (llama3.1:latest)...")
+    llm = Ollama(
+        model="llama3.1:latest", 
+        request_timeout=600.0,
+        temperature=0.8,
+        format="json", 
+        additional_kwargs={"num_ctx": 8192} 
+    )
 
-def get_index(data_dir="data", storage_dir="storage"):
+    print("[2/4] Configurando modelo de Embeddings (nomic-embed-text)...")
+    Settings.embed_model = OllamaEmbedding(model_name="nomic-embed-text")
+    Settings.llm = llm
+    
+    # Optimizaciones de chunks que agregamos antes
+    Settings.chunk_size = 512       
+    Settings.chunk_overlap = 50
+
+# Variables globales para guardar el índice y el estado
+idx = None
+ia_state = {
+    "status": "indexing", # NUEVO ESTADO: 'indexing', 'idle', 'generating', 'completed', 'error'
+    "questions": []
+}
+
+"""def get_index(data_dir="data", storage_dir="storage"):
     if not os.path.exists(storage_dir):
+        print(f"[3/4] No se encontró un índice previo en '{storage_dir}'. Creando uno nuevo en segundo plano...")
         if not os.path.exists(data_dir): os.makedirs(data_dir)
         documents = SimpleDirectoryReader(data_dir).load_data()
         index = VectorStoreIndex.from_documents(documents)
         index.storage_context.persist(persist_dir=storage_dir)
     else:
+        print(f"[3/4] Cargando el índice existente desde '{storage_dir}' en segundo plano...")
         storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
         index = load_index_from_storage(storage_context)
     return index
+"""
+def get_index(data_dir="data", storage_dir="storage"):
+    # 1. Aseguramos que el directorio de datos exista
+    if not os.path.exists(data_dir):
+        print(f"      -> Creando directorio '{data_dir}'. ¡Asegúrate de poner tus PDFs ahí!")
+        os.makedirs(data_dir)
+        
+    # OPTIMIZACIÓN 1: Lectura paralela (Usa 4 hilos para leer múltiples PDFs más rápido)
+    print(f"      -> Leyendo documentos desde '{data_dir}'...")
+    documents = SimpleDirectoryReader(data_dir).load_data(num_workers=6)
 
-# Inicializamos el índice al arrancar el servidor
-idx = get_index()
+    if not os.path.exists(storage_dir):
+        # Si no hay índice, creamos uno desde cero
+        print(f"[3/4] No se encontró un índice previo. Creando desde cero...")
+        
+        # OPTIMIZACIÓN 2: show_progress=True muestra una barra de carga en la consola
+        index = VectorStoreIndex.from_documents(documents, show_progress=True)
+        index.storage_context.persist(persist_dir=storage_dir)
+    else:
+        # Si ya existe, lo cargamos a la memoria
+        print(f"[3/4] Cargando el índice existente desde '{storage_dir}'...")
+        storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
+        index = load_index_from_storage(storage_context)
+        
+        # OPTIMIZACIÓN 3: Actualización Incremental Inteligente
+        print("      -> Verificando si hay documentos nuevos o modificados...")
+        
+        # refresh_ref_docs compara los hashes de los archivos. 
+        # Solo procesa (embbedings) los PDFs que hayas agregado o modificado.
+        cambios_realizados = index.refresh_ref_docs(documents, show_progress=True)
+        
+        if any(cambios_realizados):
+            print("      -> ¡Cambios detectados! Guardando el índice actualizado...")
+            index.storage_context.persist(persist_dir=storage_dir)
+        else:
+            print("      -> El índice ya está 100% actualizado.")
+            
+    return index
 
-# === NUEVA ARQUITECTURA DE ESTADO ===
-# Variables globales para guardar el estado de la IA y las preguntas
-ia_state = {
-    "status": "idle", # Puede ser: 'idle', 'generating', 'completed', 'error'
-    "questions": []
-}
+def inicializar_sistema():
+    """Esta función corre en segundo plano al arrancar Flask para no bloquear el servidor."""
+    global idx, ia_state
+    try:
+        idx = get_index()
+        print("[4/4] ¡Índice cargado! Sistema IA listo para recibir peticiones.")
+        ia_state["status"] = "idle" # Ya terminamos de indexar, estamos listos
+    except Exception as e:
+        print(f"Error al inicializar el índice: {e}")
+        ia_state["status"] = "error"
 
 def tarea_generar_preguntas():
-    """Esta función corre en segundo plano para no bloquear el servidor Flask."""
-    global ia_state
+    """Esta función corre en segundo plano para generar las preguntas."""
+    global ia_state, idx
     ia_state["status"] = "generating"
     ia_state["questions"] = []
+    
+    print("[IA] Generando preguntas...")
     
     try:
         query_engine = idx.as_query_engine(similarity_top_k=8)
         
         prompt = """
-        Actúa como el Profesor titular experto de la asignatura. Has leído el documento proporcionado sobre "Detección de Vulnerabilidades con LLMs" y debes evaluar a tus alumnos a través de un juego de trivia interactivo.
+        Actúa como el Profesor titular experto de la asignatura. Has leído los documentos proporcionados y debes evaluar a tus alumnos a través de un juego de trivia interactivo.
 
         Tu tarea es generar exactamente 10 preguntas desafiantes basadas ÚNICAMENTE en la información de este documento.
 
-        REGLAS CRÍTICAS (Si no las cumples, el sistema del juego fallará):
-        1. LONGITUD DE PREGUNTA: El 'text' NO puede superar los 120 caracteres.
-        2. LONGITUD DE OPCIONES: Debes crear exactamente 4 'options'. Ninguna opción debe superar los 45 caracteres.
-        3. DIFICULTAD: Crea 1 respuesta correcta y 3 distractores (respuestas incorrectas) que suenen creíbles y técnicas.
-        4. ÍNDICE: El 'correctAnswerIndex' debe ser un número entero (0, 1, 2 o 3) apuntando a la opción correcta.
+        REGLAS CRÍTICAS:
+        - El texto de la 'text' NO DEBE superar los 120 caracteres.
+        - Cada una de las 'options' NO DEBE superar los 40 caracteres.
+        - Sé muy conciso para evitar errores de red.
 
-        ESTRUCTURA OBLIGATORIA:
-        DEBES devolver ÚNICAMENTE un objeto JSON válido. No incluyas saludos, confirmaciones, ni texto en markdown fuera del JSON. Utiliza exactamente este formato:
-
+        DEBES devolver un objeto JSON:
         {
-          "questions": [
-            {
-              "id": "q1_ejemplo",
-              "text": "¿Cuál es la principal ventaja de usar un LLM para analizar código fuente?",
-              "options": ["Velocidad de ejecución", "Comprensión del contexto", "Menor uso de memoria", "Reemplazo del compilador"],
-              "correctAnswerIndex": 1
-            }
-          ]
+            "questions": [
+                {
+                    "id": "string único corto",
+                    "text": "pregunta corta",
+                    "options": ["opt1", "opt2", "opt3", "opt4"],
+                    "correctAnswerIndex": número del 0 al 3
+                }
+            ]
         }
+        Responde solo con el archivo .json.
         """
         
         response = query_engine.query(prompt)
         
-        # Limpieza de la respuesta por si Ollama añade markdown (```json ... ```)
+        # Limpieza de la respuesta corregida (evita el error 'list object has no attribute split')
         raw_text = response.response
         if "```json" in raw_text:
             raw_text = raw_text.split("```json").split("```").strip()
@@ -94,7 +150,7 @@ def tarea_generar_preguntas():
         
         ia_state["questions"] = data.get("questions", [])
         ia_state["status"] = "completed"
-        print("¡Preguntas generadas con éxito en segundo plano!")
+        print("Preguntas generadas con éxito")
         
     except Exception as e:
         print(f"Error al generar preguntas: {e}")
@@ -108,10 +164,15 @@ def generate_questions():
     """Inicia el proceso de generación de preguntas."""
     global ia_state
     
+    # 1. Si aún está procesando los PDFs al abrir el servidor
+    if ia_state["status"] == "indexing":
+        return jsonify({"status": "indexing", "message": "El servidor está procesando los PDFs. Intenta en unos segundos..."})
+    
+    # 2. Si ya está pensando en las preguntas
     if ia_state["status"] == "generating":
         return jsonify({"status": "generating", "message": "La IA ya está trabajando..."})
     
-    # Lanzamos la tarea en un hilo separado para que Flask responda de inmediato
+    # 3. Si está libre, lo ponemos a trabajar en otro hilo
     thread = threading.Thread(target=tarea_generar_preguntas)
     thread.start()
     
@@ -146,4 +207,9 @@ def get_question(index):
     return jsonify(ia_state["questions"][index])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Arrancamos la creación del índice en un hilo aparte justo antes de iniciar Flask
+    hilo_inicio = threading.Thread(target=inicializar_sistema)
+    hilo_inicio.start()
+    
+    print("🚀 Iniciando el servidor Flask de inmediato...")
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False) # use_reloader=False evita que se ejecute el hilo dos veces

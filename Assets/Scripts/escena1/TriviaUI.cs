@@ -22,12 +22,19 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _botonStart;
     [SerializeField] private GameObject _botonRestartServer;
     [SerializeField] private GameObject _botonGenerarNuevas;
-    
+    [SerializeField] private GameObject _botonUsarLocales;
+    [Header("Post-Carrera")]
+    [SerializeField] private GameObject _panelEspera;
+    [SerializeField] private GameObject _panelPodio;
+    [SerializeField] private TMP_Text _textoPodio;
+
     private void Awake() 
     {
         Instance = this;
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLobby != null) _panelLobby.SetActive(false);
+        if (_panelEspera != null) _panelEspera.SetActive(false);
+        if (_panelPodio != null) _panelPodio.SetActive(false);
     }
 
     private void Start()
@@ -45,6 +52,10 @@ public class TriviaUI : MonoBehaviour
             TMP_Text btnText = _botonGenerarNuevas.GetComponentInChildren<TMP_Text>();
             if (btnText != null) btnText.text = "Generar Preguntas (IA)";
         }
+        
+        if (_botonUsarLocales != null) _botonUsarLocales.SetActive(true); 
+        
+        if (_botonRestartServer != null) _botonRestartServer.SetActive(true);
     }
 
     public void UI_BotonGenerarNuevas()
@@ -67,10 +78,20 @@ public class TriviaUI : MonoBehaviour
         if (QuestionManager.Instance != null) QuestionManager.Instance.RequestNewGeneration();
     }
 
-    public void StartGameUI()
+    public void UI_BotonIniciarPartida()
     {
-        _panelLobby.SetActive(false);
-        _panelPrincipal.SetActive(true);
+        // Ocultamos el lobby para que quede limpio
+        if (_panelLobby != null) _panelLobby.SetActive(false);
+
+        // Llamamos al GameManager que pasaste en tu código
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.UI_BotonIniciarPartida();
+        }
+        else
+        {
+            Debug.LogError("Error: GameManager no está listo.");
+        }
     }
 
     public void ShowQuestion(Question q)
@@ -91,7 +112,22 @@ public class TriviaUI : MonoBehaviour
 
     public void UpdateTimer(float time)
     {
-        _timerText.text = time.ToString("F1") + "s";
+        if (_timerText == null) return;
+
+        if (time >= 0)
+        {
+            _timerText.text = time.ToString("F1") + "s";
+            _timerText.color = Color.white; // Tiempo normal
+        }
+        else
+        {
+            // Si es negativo, lo pasamos a positivo para mostrarlo en pantalla
+            float cuentaAtrasSiguiente = 5f + time;
+            cuentaAtrasSiguiente = Mathf.Max(0, cuentaAtrasSiguiente);
+
+            _timerText.text = "Siguiente en: " + cuentaAtrasSiguiente.ToString("F1") + "s";
+            _timerText.color = Color.yellow; // Cambiamos el color para indicar que es tiempo de espera
+        }
     }
 
     // Asignar los 4 botones en el Inspector (pasando 0, 1, 2, 3)
@@ -142,19 +178,101 @@ public class TriviaUI : MonoBehaviour
         }
         // También mostramos el de generar nuevas por si quieren cambiar la trivia actual
         if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(true);
+        if (_botonUsarLocales != null) _botonUsarLocales.SetActive(true);
+        if (_botonRestartServer != null) _botonRestartServer.SetActive(true);
     }
 
     // Función 3: Al hacer clic en el botón de reintentar
-    public void UI_BotonRestartServer()
+    public void UI_BotonReiniciarServidor()
     {
-        if (_botonRestartServer != null) _botonRestartServer.SetActive(false);
-        if (_botonStart != null)
+        var runner = FindAnyObjectByType<NetworkRunner>();
+        if (runner != null)
         {
-            _botonStart.SetActive(true);
-            TMP_Text btnText = _botonStart.GetComponentInChildren<TMP_Text>();
-            if (btnText != null) btnText.text = "IA Pensando...";
+            runner.Shutdown();
         }
 
-        if (QuestionManager.Instance != null) QuestionManager.Instance.RetryConnection();
+        UnityEngine.SceneManagement.SceneManager.LoadScene("UI"); 
+    }
+    public void ShowWaiting()
+    {
+        // Solo lo activamos si no está activo ya (para no spamear)
+        if (_panelEspera != null && !_panelEspera.activeSelf)
+        {
+            if (_panelPrincipal != null) _panelPrincipal.SetActive(false); // Oculta trivia
+            _panelEspera.SetActive(true);
+        }
+    }
+
+    public void ShowPodium()
+    {
+        // Solo lo calculamos la primera vez que se activa
+        if (_panelPodio != null && !_panelPodio.activeSelf)
+        {
+            if (_panelEspera != null) _panelEspera.SetActive(false);
+            _panelPodio.SetActive(true);
+
+            GenerarTextoPodio();
+        }
+    }
+
+    private void GenerarTextoPodio()
+    {
+        if (_textoPodio == null) return;
+
+        // Buscamos a todos los jugadores en la escena
+        Player[] todosLosJugadores = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        
+        // Filtramos solo los que llegaron y los ordenamos por su Rank (1, 2, 3...)
+        var podioOrdenado = System.Linq.Enumerable.ToList(
+            System.Linq.Enumerable.OrderBy(
+                System.Linq.Enumerable.Where(todosLosJugadores, p => p.PlayerRank > 0), 
+                p => p.PlayerRank
+            )
+        );
+
+        string textoFinal = "<b><size=150%>¡CARRERA TERMINADA!</size></b>\n\n";
+
+        foreach (var p in podioOrdenado)
+        {
+            // Usamos PlayerId para identificar si fuiste tú o los demás
+            string etiquetaTu = (p.Object.HasInputAuthority) ? " (TÚ)" : "";
+
+            textoFinal += $"{p.PlayerRank}º Lugar: Jugador {p.Object.InputAuthority.PlayerId}{etiquetaTu}\n";
+        }
+
+        _textoPodio.text = textoFinal;
+    }
+
+    public void UpdatePodiumLive()
+    {
+        if (_panelPodio == null) return;
+
+        // Activamos el panel (ahora debe estar a un lateral)
+        if (!_panelPodio.activeSelf) _panelPodio.SetActive(true);
+
+        // Buscamos y ordenamos a los jugadores que han terminado
+        Player[] todos = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        
+        // Ordenamos por rango (solo los que ya llegaron)
+        var terminaron = System.Linq.Enumerable.ToList(
+            System.Linq.Enumerable.OrderBy(
+                System.Linq.Enumerable.Where(todos, p => p.PlayerRank > 0), 
+                p => p.PlayerRank
+            )
+        );
+
+        string contenido = "<b>POSICIONES</b>\n";
+        foreach (var p in terminaron)
+        {
+            string tu = p.Object.HasInputAuthority ? " (TÚ)" : "";
+            contenido += $"{p.PlayerRank}º - Jugador {p.Object.InputAuthority.PlayerId}{tu}\n";
+        }
+
+        if (_textoPodio != null) _textoPodio.text = contenido;
+    }
+    public void StartGameUI()
+    {
+        // Cuando el servidor avisa que empezó la partida, ocultamos el lobby
+        if (_panelLobby != null) _panelLobby.SetActive(false);
     }
 }

@@ -1,5 +1,6 @@
 using Fusion;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : NetworkBehaviour
 {
@@ -9,7 +10,8 @@ public class GameManager : NetworkBehaviour
     [Networked] public int CurrentQuestionIndex { get; set; } = -1;
     [Networked] public bool IsMatchStarted { get; set; }
     [Networked] public int FinishedPlayersCount { get; set; }
-
+    [Networked] public bool IsRaceOver { get; set; }
+    
     private ChangeDetector _changeDetector;
     private const float CycleDuration = 15f;
     private const float ResponseWindow = 10f;
@@ -40,15 +42,6 @@ public class GameManager : NetworkBehaviour
                 case nameof(IsMatchStarted):
                     if (IsMatchStarted) TriviaUI.Instance.StartGameUI();
                     break;
-                
-                case nameof(CurrentQuestionIndex):
-                    if (CurrentQuestionIndex >= 0)
-                    {
-                        // Pedimos la pregunta al QuestionManager y la mostramos
-                        var q = QuestionManager.Instance.GetQuestion(CurrentQuestionIndex);
-                        TriviaUI.Instance.ShowQuestion(q);
-                    }
-                    break;
             }
         }
     }
@@ -78,7 +71,7 @@ public class GameManager : NetworkBehaviour
         if (GlobalCycleTimer.IsRunning)
         {
             float elapsed = CycleDuration - (GlobalCycleTimer.RemainingTime(Runner) ?? 0);
-            return Mathf.Max(0, ResponseWindow - elapsed);
+            return ResponseWindow - elapsed;
         }
         return 0;
     }
@@ -88,8 +81,54 @@ public class GameManager : NetworkBehaviour
         if (Object.HasStateAuthority)
         {
             FinishedPlayersCount++;
+
+            // Contamos cuántos jugadores hay en la sala actualmente
+            int totalPlayers = 0;
+            foreach(var p in Runner.ActivePlayers) totalPlayers++;
+            
+            // Si ya llegaron todos, la carrera termina
+            if (FinishedPlayersCount >= totalPlayers)
+            {
+                IsRaceOver = true;
+            }
+
             return FinishedPlayersCount;
         }
         return 0;
+    }
+    public void UI_BotonRegenerarPreguntas()
+    {
+        // Solo el Host puede pedir regenerar las preguntas
+        if (Object.HasStateAuthority)
+        {
+            Debug.Log("GameManager: Reiniciando estado y regenerando preguntas...");
+
+            // 1. Reseteamos las variables de la partida por si ya había empezado
+            IsMatchStarted = false;
+            CurrentQuestionIndex = -1;
+            GlobalCycleTimer = TickTimer.None;
+            FinishedPlayersCount = 0;
+            IsRaceOver = false;
+
+            // 2. Le pedimos al QuestionManager que inicie el proceso con la IA
+            if (QuestionManager.Instance != null)
+            {
+                QuestionManager.Instance.RequestNewGeneration();
+            }
+        }
+    }
+
+    public void UI_BotonReiniciarServidor()
+    {
+        Debug.Log("GameManager: Cerrando el servidor y volviendo al menú...");
+
+        // 1. Apagamos el Runner (Esto desconecta a todos de Photon)
+        if (Runner != null)
+        {
+            Runner.Shutdown();
+        }
+        
+        // 2. Cargamos tu escena inicial. Asegúrate de que tu escena inicial se llame exactamente "UI".
+        SceneManager.LoadScene("UI"); 
     }
 }
