@@ -50,11 +50,50 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         _panelCrearSala.SetActive(true);
     }
 
-    public void UI_IrABrowser() {
+    public async void UI_IrABrowser() {
         OcultarTodosLosPaneles();
-        _panelBrowser.SetActive(true);
-        // Iniciamos el Runner para buscar salas (Lobby compartido)
-        StartGame(GameMode.Client, "");
+        if (_panelBrowser != null) _panelBrowser.SetActive(true);
+
+        if (_runner == null) 
+        {
+            _runner = gameObject.AddComponent<NetworkRunner>();
+            _runner.ProvideInput = true;
+        }
+
+        Debug.Log("Conectando al Lobby de Fusion para buscar salas...");
+        // Esto conectará al cliente al servidor maestro para recibir la lista
+        await _runner.JoinSessionLobby(SessionLobby.ClientServer);
+    }
+
+    public void UI_BotonVolver()
+    {
+        OcultarTodosLosPaneles();
+        
+        // Volvemos a mostrar el menú principal
+        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
+
+        // Si estábamos en el buscador de salas, apagamos el Runner para no gastar 
+        // recursos en segundo plano escuchando a la red.
+        if (_runner != null)
+        {
+            _runner.Shutdown();
+            _runner = null;
+        }
+    }
+
+    public async void UI_BotonRefrescarSalas()
+    {
+        Debug.Log("Refrescando lista de salas...");
+        
+        // Vaciamos la lista visual al instante para que el jugador note que se refrescó
+        foreach (Transform child in _roomListContent) Destroy(child.gameObject);
+
+        if (_runner != null)
+        {
+            // Volvemos a pedirle a Photon que nos meta al lobby. 
+            // Esto forzará que nos envíe la lista más actualizada en un par de segundos.
+            await _runner.JoinSessionLobby(SessionLobby.ClientServer);
+        }
     }
 
     public void UI_ConfirmarHost() {
@@ -94,13 +133,15 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         if (Mouse.current != null)
             _mouseButton0 = _mouseButton0 | Mouse.current.leftButton.isPressed;
     }
+    
     public async void StartGame(GameMode mode, string roomName = "TestRoom")
     {
-        if (_runner != null) return;
+        if (_runner == null)
+        {
+            _runner = gameObject.AddComponent<NetworkRunner>();
+            _runner.ProvideInput = true;
+        }
 
-        // Create the Fusion runner and let it know that we will be providing user input
-        _runner = gameObject.AddComponent<NetworkRunner>();
-        _runner.ProvideInput = true;
         DontDestroyOnLoad(gameObject);
 
         // Create the NetworkSceneInfo from the current scene
@@ -242,22 +283,37 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
     void INetworkRunnerCallbacks.OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList)
     {
+        Debug.Log($"[Lobby] Servidor reporta {sessionList.Count} salas activas.");
+        
+        // 1. Limpiamos los botones viejos
         foreach (Transform child in _roomListContent) Destroy(child.gameObject);
 
+        // 2. Creamos los botones nuevos
         foreach (var session in sessionList)
         {
-            GameObject btnObj = Instantiate(_roomButtonPrefab, _roomListContent);
-            RoomButton script = btnObj.GetComponent<RoomButton>();
-            if(script != null) script.Setup(session, this);
+            // Solo mostramos la sala si es visible y tiene espacio
+            if (session.IsVisible && session.IsOpen)
+            {
+                Debug.Log($"-> Sala encontrada: {session.Name} | Jugadores: {session.PlayerCount}/{session.MaxPlayers}");
+                
+                GameObject btnObj = Instantiate(_roomButtonPrefab, _roomListContent, false);
+                btnObj.transform.localScale = Vector3.one;
+                btnObj.transform.localPosition = Vector3.zero;
+                RoomButton script = btnObj.GetComponent<RoomButton>();
+                if (script != null) script.Setup(session, this);
+            }
         }
-    
     }
+    
     void INetworkRunnerCallbacks.OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
     void INetworkRunnerCallbacks.OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken) { }
     void INetworkRunnerCallbacks.OnSceneLoadDone(NetworkRunner runner) {
         Debug.Log("Entramos a la sesión. Mostrando Lobby.");
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true; 
+
+        OcultarTodosLosPaneles();
+
         if (_menuCanvas != null) _menuCanvas.SetActive(false);
         if (_menuCamera != null) _menuCamera.SetActive(false);
     }

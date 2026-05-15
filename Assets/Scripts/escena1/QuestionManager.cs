@@ -187,10 +187,14 @@ public class QuestionManager : NetworkBehaviour
     public void SincronizarConNuevoJugador(PlayerRef nuevoJugador)
     {
         // Solo el Host tiene los datos del LLM y debe enviarlos
-        if (!Object.HasStateAuthority || !IsReady || _questions == null) return;
-
+        if (!Object.HasStateAuthority || !IsReady || _questions == null || _questions.Length == 0)
+        {        
+            Debug.LogWarning("[QuestionManager] Preguntas no listas aún. Se enviarán a todos cuando la IA termine.");
+            return;
+        }
         Debug.Log($"[Host] Sincronizando trivia con el jugador: {nuevoJugador.PlayerId}");
 
+        if (nuevoJugador == Runner.LocalPlayer) return;
         // 1. Enviamos señal de inicio con el total de preguntas
         RPC_EnviarInicioATarget(nuevoJugador, _questions.Length);
 
@@ -215,6 +219,8 @@ public class QuestionManager : NetworkBehaviour
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
     public void RPC_EnviarInicioATarget([RpcTarget] PlayerRef target, int totalQuestions)
     {
+        if (Object.HasStateAuthority) return;
+
         // Esta lógica solo se ejecuta en el cliente 'target'
         _questionsList.Clear();
         _questions = new Question[totalQuestions];
@@ -225,6 +231,8 @@ public class QuestionManager : NetworkBehaviour
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
     public void RPC_EnviarPreguntaATarget([RpcTarget] PlayerRef target, string id, string text, string o1, string o2, string o3, string o4, int correct)
     {
+        if (Object.HasStateAuthority) return;
+        
         // Esta lógica solo se ejecuta en el cliente 'target'
         Question q = new Question {
             id = id,

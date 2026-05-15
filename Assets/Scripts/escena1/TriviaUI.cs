@@ -42,6 +42,12 @@ public class TriviaUI : MonoBehaviour
         if (_botonStart != null) _botonStart.SetActive(false);
         if (_botonRestartServer != null) _botonRestartServer.SetActive(false);
         if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(false);
+
+        NetworkRunner runner = FindAnyObjectByType<NetworkRunner>();
+        if (runner != null)
+        {
+            UpdateLobbyUI(runner);
+        }
     }
 
     public void ShowGenerateButton()
