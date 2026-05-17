@@ -44,10 +44,10 @@ public class QuestionManager : NetworkBehaviour
         RPC_StartSync(pool.questions.Length);
         foreach (var q in pool.questions)
         {
-            string o1 = q.options.Length > 0 ? q.options : "";
-            [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
-            [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
-            [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
+            string o1 = q.options.Length > 0 ? q.options[0] : "";
+            string o2 = q.options.Length > 1 ? q.options[1] : "";
+            string o3 = q.options.Length > 2 ? q.options[2] : "";
+            string o4 = q.options.Length > 3 ? q.options[3] : "";
             
             RPC_SyncSingleQuestion(q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
         }
@@ -133,10 +133,10 @@ public class QuestionManager : NetworkBehaviour
                             RPC_StartSync(pool.questions.Length);
                             foreach (var q in pool.questions)
                             {
-                                string o1 = q.options.Length > 0 ? q.options : "";
-                                [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
-                                [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
-                                [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
+                                string o1 = q.options.Length > 0 ? q.options[0] : "";
+                                string o2 = q.options.Length > 1 ? q.options[1] : "";
+                                string o3 = q.options.Length > 2 ? q.options[2] : "";
+                                string o4 = q.options.Length > 3 ? q.options[3] : "";
 
                                 RPC_SyncSingleQuestion(q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
                             }
@@ -210,10 +210,10 @@ public class QuestionManager : NetworkBehaviour
 
         foreach (var q in _questions)
         {
-            string o1 = q.options.Length > 0 ? q.options : "";
-            [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
-            [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
-            [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
+            string o1 = q.options.Length > 0 ? q.options[0] : "";
+            string o2 = q.options.Length > 1 ? q.options[1] : "";
+            string o3 = q.options.Length > 2 ? q.options[2] : "";
+            string o4 = q.options.Length > 3 ? q.options[3] : "";
 
             RPC_EnviarPreguntaATarget(nuevoJugador, q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
         }
