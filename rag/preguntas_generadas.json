@@ -1,0 +1,134 @@
+{
+    "questions": [
+        {
+            "id": "1_Fácil",
+            "question": "¿En qué paso del recorrido de una lista se efectúa la asignación X = SIG(X)?",
+            "options": [
+                "En el paso 3",
+                "En el paso 4",
+                "En el paso 5",
+                "En el paso 6"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "2_Fácil",
+            "question": "¿En que punto se repite el proceso de búsqueda binaria?",
+            "options": [
+                "Al final del vector",
+                "Después de encontrar el elemento central",
+                "Antes de comparar con el elemento central",
+                "Nunca"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "3_Fácil",
+            "question": "¿En qué orden se visitan los nodos en un árbol binario durante el recorrido pre-orden?",
+            "options": [
+                "Visitar el raíz, Recorrer el subárbol izquierdo, Recorrer el subárbol derecho",
+                "Recorrer el subárbol izquierdo, Visitar el raíz, Recorrer el subárbol derecho",
+                "Visitar el raíz y luego los dos subárboles en orden",
+                "Recurrir a Q"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "4_Fácil",
+            "question": "¿Cuál es el beneficio de utilizar una estructura contigua en lugar de una estructura enlazada?",
+            "options": [
+                "Máyor complejidad en la implementación",
+                "Posibilidad de crecimiento dinámico",
+                "Localización inmediata de los datos",
+                "Uso eficiente de la memoria"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "5_Media",
+            "question": "¿Cuál es el estado de una cola vaci  en la implementación dinámica?",
+            "options": [
+                "f y r son ambas nulos",
+                "f y r coinciden",
+                "f no coincide con r",
+                "f ni coincide con r"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "6_Media",
+            "question": "¿Cuál es el resultado de multiplicar 2 y 3 en un grupo modular de orden 5?",
+            "options": [
+                "0",
+                "1",
+                "2",
+                "4"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "7_Media",
+            "question": "¿Cuál es el resultado del recorrido en pre-orden de un árbol binario?",
+            "options": [
+                "Visitar el nodo raíz y luego los subárboles izquierdo y derecho.",
+                "Visitar los subárboles izquierdo y derecho y luego el nodo raíz.",
+                "Visitar el nodo raíz y luego recorrer los subárboles en pre-orden.",
+                "Visitar los subárboles en post-órden y luego el nodo raíz."
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "8_Difícil",
+            "question": "¿Cuál es el resultado de aplicar la propiedad modular de Theorem 31.6 a dos números enteros no cero modulo p?",
+            "options": [
+                "Ambos son distintos",
+                "Uno es distinto al otro",
+                "Ambos son iguales",
+                "No se puede determinar"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "9_Difícil",
+            "question": "¿En un árbol binario de búsqueda, qué sucede con el subárbol que no contiene la clave buscada?",
+            "options": [
+                "Se elimina",
+                "Se mantiene",
+                "Se reemplaza",
+                "No se afecta"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "10_Difícil",
+            "question": "¿En que año se publico el theorem 31.12?",
+            "options": [
+                "1995",
+                "2002",
+                "2010",
+                "2018"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        }
+    ]
+}
