@@ -23,17 +23,29 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _botonRestartServer;
     [SerializeField] private GameObject _botonGenerarNuevas;
     [SerializeField] private GameObject _botonUsarLocales;
+    
     [Header("Post-Carrera")]
-    [SerializeField] private GameObject _panelEspera;
+    [SerializeField] private GameObject _panelLlegaste;
     [SerializeField] private GameObject _panelPodio;
     [SerializeField] private TMP_Text _textoPodio;
+
+    [Header("Retroalimentación IA (Final de Carrera)")]
+    [SerializeField] private GameObject panelFeedbackFinal; 
+    [SerializeField] private TMPro.TMP_Text textoMensajeGeneral;
+    [SerializeField] private TMPro.TMP_Text textoFortalezas;
+    [SerializeField] private TMPro.TMP_Text textoMejoras;
+    [SerializeField] private Button _botonVerFeedback;
+    [SerializeField] private TMP_Text _textoBotonFeedback;
+
+    private FeedbackData _cachedFeedbackData;
+    private bool _esperandoFeedback = false;
 
     private void Awake() 
     {
         Instance = this;
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLobby != null) _panelLobby.SetActive(false);
-        if (_panelEspera != null) _panelEspera.SetActive(false);
+        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
         if (_panelPodio != null) _panelPodio.SetActive(false);
     }
 
@@ -48,6 +60,78 @@ public class TriviaUI : MonoBehaviour
         {
             UpdateLobbyUI(runner);
         }
+    }
+
+    private void Update()
+    {
+        if (_esperandoFeedback && GameManager.Instance != null && Player.Local != null)
+        {
+            if (_textoBotonFeedback != null)
+            {
+                // Si el N° de feedbacks completados es >= a la gente que llegó antes que yo, es mi turno
+                if (GameManager.Instance.FeedbacksCompleted >= Player.Local.PlayerRank - 1)
+                {
+                    _textoBotonFeedback.text = "Generando feedback...";
+                }
+                else
+                {
+                    _textoBotonFeedback.text = "Esperando para generar feedback...";
+                }
+            }
+        }
+    }
+
+    public void RegistrarFinDeCarreraLocal(int score, int total)
+    {
+        _cachedFeedbackData = null;
+        _esperandoFeedback = true;
+        
+        if (_botonVerFeedback != null)
+        {
+            _botonVerFeedback.interactable = false;
+            if (_textoBotonFeedback != null) _textoBotonFeedback.text = " Profesor corrigiendo...";
+        }
+
+        // Disparamos la corrutina HTTP de tu QuestionManager de forma asíncrona
+        if (QuestionManager.Instance != null)
+        {
+            QuestionManager.Instance.SolicitarFeedbackFinal(score, total);
+        }
+    }
+    
+    public void ShowFeedback(FeedbackData data)
+    {
+        _cachedFeedbackData = data; // Almacenamos el reporte académico en la memoria caché
+        _esperandoFeedback = false;
+
+            if (_botonVerFeedback != null) _botonVerFeedback.interactable = true; // ¡Desbloqueado! El jugador ya puede pulsar el botón
+            if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver Evaluación IA";
+            if (GameManager.Instance != null) GameManager.Instance.RPC_FeedbackCompletado();
+    }
+
+    public void UI_BotonMostrarPanelFeedbackOculto()
+    {
+        if (_cachedFeedbackData == null) return;
+
+        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(true);
+        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
+
+        if (textoMensajeGeneral != null && !string.IsNullOrEmpty(_cachedFeedbackData.mensaje_general)) 
+            textoMensajeGeneral.text = _cachedFeedbackData.mensaje_general;
+
+        // Mapeo bilingüe tolerante a fallos
+        string[] fuertes = (_cachedFeedbackData.fortalezas != null && _cachedFeedbackData.fortalezas.Length > 0) ? _cachedFeedbackData.fortalezas : _cachedFeedbackData.strengths;
+        string[] mejoras = (_cachedFeedbackData.areas_mejora != null && _cachedFeedbackData.areas_mejora.Length > 0) ? _cachedFeedbackData.areas_mejora : _cachedFeedbackData.weaknesses;
+
+        if (textoFortalezas != null && fuertes != null && fuertes.Length > 0)
+            textoFortalezas.text = "<b>Puntos Fuertes:</b>\n- " + string.Join("\n- ", fuertes);
+        else if (textoFortalezas != null)
+            textoFortalezas.text = "<b>Puntos Fuertes:</b>\n- Buen rendimiento conceptual general.";
+
+        if (textoMejoras != null && mejoras != null && mejoras.Length > 0)
+            textoMejoras.text = "<b>Áreas Recomendadas:</b>\n- " + string.Join("\n- ", mejoras);
+        else if (textoMejoras != null)
+            textoMejoras.text = "<b>Áreas Recomendadas:</b>\n- No se detectaron debilidades críticas, ¡sigue así!";
     }
 
     public void ShowGenerateButton()
@@ -103,7 +187,7 @@ public class TriviaUI : MonoBehaviour
     public void ShowQuestion(Question q)
     {
         _panelPrincipal.SetActive(true);
-        _preguntaText.text = q.text;
+        _preguntaText.text = q.question;
 
         for (int i = 0; i < _opcionesTexts.Length; i++)
         {
@@ -202,64 +286,30 @@ public class TriviaUI : MonoBehaviour
     public void ShowWaiting()
     {
         // Solo lo activamos si no está activo ya (para no spamear)
-        if (_panelEspera != null && !_panelEspera.activeSelf)
+        if (_panelLlegaste != null && !_panelLlegaste.activeSelf)
         {
             if (_panelPrincipal != null) _panelPrincipal.SetActive(false); // Oculta trivia
-            _panelEspera.SetActive(true);
+            _panelLlegaste.SetActive(true);
         }
     }
 
     public void ShowPodium()
     {
-        // Solo lo calculamos la primera vez que se activa
+        // Muestra el podio final completo (se ejecuta de manera segura por compatibilidad)
         if (_panelPodio != null && !_panelPodio.activeSelf)
         {
-            if (_panelEspera != null) _panelEspera.SetActive(false);
             _panelPodio.SetActive(true);
-
-            GenerarTextoPodio();
         }
-    }
-
-    private void GenerarTextoPodio()
-    {
-        if (_textoPodio == null) return;
-
-        // Buscamos a todos los jugadores en la escena
-        Player[] todosLosJugadores = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
-        
-        // Filtramos solo los que llegaron y los ordenamos por su Rank (1, 2, 3...)
-        var podioOrdenado = System.Linq.Enumerable.ToList(
-            System.Linq.Enumerable.OrderBy(
-                System.Linq.Enumerable.Where(todosLosJugadores, p => p.PlayerRank > 0), 
-                p => p.PlayerRank
-            )
-        );
-
-        string textoFinal = "<b><size=150%>¡CARRERA TERMINADA!</size></b>\n\n";
-
-        foreach (var p in podioOrdenado)
-        {
-            // Usamos PlayerId para identificar si fuiste tú o los demás
-            string etiquetaTu = (p.Object.HasInputAuthority) ? " (TÚ)" : "";
-
-            textoFinal += $"{p.PlayerRank}º Lugar: Jugador {p.Object.InputAuthority.PlayerId}{etiquetaTu}\n";
-        }
-
-        _textoPodio.text = textoFinal;
+        UpdatePodiumLive();
     }
 
     public void UpdatePodiumLive()
     {
-        if (_panelPodio == null) return;
+        // Encendemos el Canvas del podio de forma independiente apenas es llamado
+        if (_panelPodio != null && !_panelPodio.activeSelf) 
+            _panelPodio.SetActive(true);
 
-        // Activamos el panel (ahora debe estar a un lateral)
-        if (!_panelPodio.activeSelf) _panelPodio.SetActive(true);
-
-        // Buscamos y ordenamos a los jugadores que han terminado
         Player[] todos = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
-        
-        // Ordenamos por rango (solo los que ya llegaron)
         var terminaron = System.Linq.Enumerable.ToList(
             System.Linq.Enumerable.OrderBy(
                 System.Linq.Enumerable.Where(todos, p => p.PlayerRank > 0), 
@@ -267,15 +317,16 @@ public class TriviaUI : MonoBehaviour
             )
         );
 
-        string contenido = "<b>POSICIONES</b>\n";
+        string contenido = "";
         foreach (var p in terminaron)
         {
-            string tu = p.Object.HasInputAuthority ? " (TÚ)" : "";
-            contenido += $"{p.PlayerRank}º - Jugador {p.Object.InputAuthority.PlayerId}{tu}\n";
+            string tu = (Player.Local != null && p.Object.InputAuthority == Player.Local.Object.InputAuthority) ? " (TÚ)" : "";
+            contenido += $"{p.PlayerRank}º Lugar - Jugador {p.Object.InputAuthority.PlayerId}{tu}\n";
         }
 
         if (_textoPodio != null) _textoPodio.text = contenido;
     }
+
     public void StartGameUI()
     {
         // Cuando el servidor avisa que empezó la partida, ocultamos el lobby

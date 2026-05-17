@@ -11,9 +11,10 @@ public class GameManager : NetworkBehaviour
     [Networked] public bool IsMatchStarted { get; set; }
     [Networked] public int FinishedPlayersCount { get; set; }
     [Networked] public bool IsRaceOver { get; set; }
-    
+    [Networked] public int FeedbacksCompleted { get; set; }
+
     private ChangeDetector _changeDetector;
-    private const float CycleDuration = 15f;
+    private const float CycleDuration = 13f;
     private const float ResponseWindow = 10f;
 
     private void Awake()
@@ -41,6 +42,14 @@ public class GameManager : NetworkBehaviour
             {
                 case nameof(IsMatchStarted):
                     if (IsMatchStarted) TriviaUI.Instance.StartGameUI();
+                    break;
+                    
+                case nameof(FinishedPlayersCount):
+                    if (FinishedPlayersCount > 0 && TriviaUI.Instance != null) 
+                    {
+                        // Actualiza y muestra el podio lateral para TODOS los jugadores en la sala
+                        TriviaUI.Instance.UpdatePodiumLive();
+                    }
                     break;
             }
         }
@@ -96,6 +105,13 @@ public class GameManager : NetworkBehaviour
         }
         return 0;
     }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    public void RPC_FeedbackCompletado()
+    {
+        FeedbacksCompleted++;
+    }
+
     public void UI_BotonRegenerarPreguntas()
     {
         // Solo el Host puede pedir regenerar las preguntas
@@ -109,6 +125,7 @@ public class GameManager : NetworkBehaviour
             GlobalCycleTimer = TickTimer.None;
             FinishedPlayersCount = 0;
             IsRaceOver = false;
+            FeedbacksCompleted = 0;
 
             // 2. Le pedimos al QuestionManager que inicie el proceso con la IA
             if (QuestionManager.Instance != null)

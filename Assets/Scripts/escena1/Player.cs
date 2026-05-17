@@ -1,5 +1,6 @@
 using Fusion;
 using UnityEngine;
+using Unity.Cinemachine;
 
 public enum EPlayerState { Responding, Stunned, Advancing, Finished }
 
@@ -9,8 +10,8 @@ public class Player : NetworkBehaviour
     [Networked] private TickTimer _stunTimer { get; set; }
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
     [Networked] public int PlayerRank { get; set; }
+    [Networked] public int RespuestasCorrectas { get; set; }
     
-    // Nueva variable sincronizada para la inclinación de la cabeza (Arriba/Abajo)
     [Networked] private float _pitch { get; set; }
 
     private int _lastDisplayedQuestionIndex = -1;
@@ -22,6 +23,7 @@ public class Player : NetworkBehaviour
     [SerializeField] private Transform _cameraPivot; // ¡Asegúrate de asignar este objeto vacío en el Inspector!
     public float mouseSensitivity = 2f;
 
+    public static Player Local;
     private NetworkCharacterController _cc;
     private GameManager _gameManager;
 
@@ -34,17 +36,42 @@ public class Player : NetworkBehaviour
     {
         _gameManager = FindFirstObjectByType<GameManager>();
         
-        if (Object.HasInputAuthority)
+        // 1. Buscamos todas las cámaras de Cinemachine dentro de NUESTRO Prefab
+        var vCams = GetComponentsInChildren<Unity.Cinemachine.CinemachineCamera>(true); 
+
+        if (Object.HasInputAuthority) // ¡SI SOY EL JUGADOR LOCAL!
         {
-            // Tomamos la cámara principal y la hacemos hija de nuestro CameraPivot
-            Camera mainCam = Camera.main;
-            if (mainCam != null && _cameraPivot != null)
+            Local = this;
+            // 2. Le decimos a Cinemachine que NUESTRAS cámaras nos sigan y miren a nuestro Pivot
+            foreach (var cam in vCams)
             {
-                mainCam.transform.SetParent(_cameraPivot);
-                mainCam.transform.localPosition = Vector3.zero;
-                mainCam.transform.localRotation = Quaternion.identity;
-                Debug.Log("Cámara emparejada al jugador local.");
+                cam.enabled = true; // Nos aseguramos de que estén encendidas
+                if (_cameraPivot != null)
+                {
+                    cam.Follow = _cameraPivot;
+                    cam.LookAt = _cameraPivot;
+                }
             }
+
+            // Opcional: Ocultamos nuestro propio cuerpo local para que no tape la cámara en primera persona
+            Transform meshTransform = transform.Find("Mesh");
+            if (meshTransform != null) meshTransform.gameObject.SetActive(false);
+            
+            Transform armorsTransform = transform.Find("Armors");
+            if (armorsTransform != null) armorsTransform.gameObject.SetActive(false);
+        }
+        else // ¡SI ES UN RIVAL EN MI PANTALLA!
+        {
+            // 3. APAGAMOS por completo sus componentes de cámara para que no secuestren nuestra pantalla
+            foreach (var cam in vCams)
+            {
+                cam.enabled = false;
+            }
+
+            Transform cameraHolder = transform.Find("CameraHolder");
+            if (cameraHolder != null) cameraHolder.gameObject.SetActive(false);
+            
+            if (_cameraPivot != null) _cameraPivot.gameObject.SetActive(false);
         }
     }
 
@@ -69,8 +96,6 @@ public class Player : NetworkBehaviour
                 _pitch -= data.lookRotationDeltaY * mouseSensitivity;
                 _pitch = Mathf.Clamp(_pitch, -85f, 85f); 
                 
-                if (_cameraPivot != null)
-                    _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
             }
 
             // -- MÁQUINA DE ESTADOS --
@@ -131,6 +156,7 @@ public class Player : NetworkBehaviour
                 {
                     Debug.Log("SERVIDOR: Respuesta Correcta. Avanzando.");
                     State = EPlayerState.Advancing;
+                    RespuestasCorrectas++;
                 }
                 else
                 {
@@ -168,85 +194,56 @@ public class Player : NetworkBehaviour
 
     public override void Render()
     {
-        if (!Object.HasInputAuthority) return;
-
-        if (_gameManager != null && _gameManager.Object.IsValid)
+        // --- ROTACIÓN VISUAL DE LA CABEZA (Aplica para todos los jugadores en la escena) ---
+        if (_cameraPivot != null)
         {
-            // --- CONTROL DEL CURSOR ---
-            bool isResponding = (State == EPlayerState.Responding);
-            
-            bool isAltPressed = UnityEngine.InputSystem.Keyboard.current != null && 
-                                (UnityEngine.InputSystem.Keyboard.current.leftAltKey.isPressed || 
-                                 UnityEngine.InputSystem.Keyboard.current.rightAltKey.isPressed);
+            // Usamos la variable [Networked] '_pitch' para rotar el pivot suavemente en cada frame
+            _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
+        }
 
-            bool shouldUnlockCursor = isResponding || isAltPressed;
-            
-            Cursor.lockState = shouldUnlockCursor ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = shouldUnlockCursor;
-
-            if (_gameManager.FinishedPlayersCount > 0)
+        // 🚨 PROTECCIÓN DE UI: Solo el dueño de este teclado puede manipular la interfaz de su pantalla
+        if (Object.HasInputAuthority)
+        {
+            // --- CONTROL DE UI POST-CARRERA ---
+            if (State == EPlayerState.Finished)
             {
-                TriviaUI.Instance.UpdatePodiumLive();
+                TriviaUI.Instance.ShowWaiting();
             }
-
-            // --- CONTROL DE LA UI DE TRIVIA (Solo si no hemos terminado) ---
-            if (isResponding && State != EPlayerState.Finished)
+            
+            else if (State == EPlayerState.Responding)
             {
                 int currentIdx = _gameManager.CurrentQuestionIndex;
                 if (_lastDisplayedQuestionIndex != currentIdx)
                 {
-                    Question q = QuestionManager.Instance.GetQuestion(currentIdx);
-                    if (q != null)
+                    // Intentamos pedir la pregunta
+                    var q = QuestionManager.Instance.GetQuestion(currentIdx);
+                    
+                    // LA CLAVE: Solo marcamos la pregunta como "mostrada" 
+                    // si realmente logramos sacarla del QuestionManager.
+                    if (q != null) 
                     {
-                        _lastDisplayedQuestionIndex = currentIdx;
                         TriviaUI.Instance.ShowQuestion(q);
+                        _lastDisplayedQuestionIndex = currentIdx; // <--- SE MUEVE AQUÍ ADENTRO
                     }
+                    // Si 'q' es null, el código ignorará esto y volverá a 
+                    // intentarlo en la siguiente fracción de segundo.
                 }
-                TriviaUI.Instance.UpdateTimer(_gameManager.GetRemainingResponseTime());
             }
             else
             {
-                if (_lastDisplayedQuestionIndex != -1)
+                if (State != EPlayerState.Finished) 
                 {
-                    _lastDisplayedQuestionIndex = -1;
                     TriviaUI.Instance.Hide();
                 }
             }
-            
-            // Animaciones
-            if (_animator != null)
-            {
-                _animator.SetBool("isStunned", State == EPlayerState.Stunned);
-                float speed = (State == EPlayerState.Advancing || State == EPlayerState.Finished) ? 1f : 0f;
-                _animator.SetFloat("Speed", speed);
-            }
+        }
 
-            // --- NUEVO: CONTROL DE UI POST-CARRERA ---
-            if (State == EPlayerState.Finished)
-            {
-                if (_gameManager.IsRaceOver)
-                {
-                    TriviaUI.Instance.ShowPodium(); // Todos llegaron
-                }
-                else
-                {
-                    TriviaUI.Instance.ShowWaiting(); // Faltan jugadores
-                }
-                if (State == EPlayerState.Responding)
-                {
-                    int currentIdx = _gameManager.CurrentQuestionIndex;
-                    if (_lastDisplayedQuestionIndex != currentIdx)
-                    {
-                        _lastDisplayedQuestionIndex = currentIdx;
-                        var q = QuestionManager.Instance.GetQuestion(currentIdx);
-                        if (q != null) TriviaUI.Instance.ShowQuestion(q);
-                    }
-                }
-                else
-                {
-                    TriviaUI.Instance.Hide();
-                }
-            }
+        // --- ANIMACIONES (Todos deben procesarlas para verse en red) ---
+        if (_animator != null)
+        {
+            _animator.SetBool("isStunned", State == EPlayerState.Stunned);
+            float speed = (State == EPlayerState.Advancing || State == EPlayerState.Finished) ? 1f : 0f;
+            _animator.SetFloat("Speed", speed);
         }
     }
     
@@ -255,5 +252,28 @@ public class Player : NetworkBehaviour
         State = EPlayerState.Finished;
         PlayerRank = rank;
         Debug.Log($"¡Llegaste en la posición: {rank}!");
+        
+        RPC_NotificarLlegada(RespuestasCorrectas);
+        RPC_UpdatePodiumGlobal();
+    }
+    
+    [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
+    public void RPC_NotificarLlegada(int misRespuestasCorrectas)
+    {
+        // Esto solo se ejecuta en la pantalla local del jugador que cruzó
+        Debug.Log($"¡Acabas de cruzar la meta! Tienes {misRespuestasCorrectas} correctas.");
+        if (TriviaUI.Instance != null)
+        {
+            TriviaUI.Instance.RegistrarFinDeCarreraLocal(misRespuestasCorrectas, 10);
+        }
+    }
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_UpdatePodiumGlobal()
+    {
+        // Esto se ejecuta en la pantalla de TODOS los jugadores al mismo tiempo
+        if (TriviaUI.Instance != null)
+        {
+            TriviaUI.Instance.UpdatePodiumLive();
+        }
     }
 }
