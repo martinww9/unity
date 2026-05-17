@@ -1,3 +1,4 @@
+// QuestionManager.cs corregido para Producción en Red Externa
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
@@ -11,7 +12,8 @@ public class QuestionManager : NetworkBehaviour
     private Question[] _questions;
     public bool IsReady { get; private set; }
 
-    private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev:5000/api";
+    // ✓ CORRECCIÓN 1: Se eliminó el puerto :5000 redundante para ngrok
+    private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev/api";
 
     private void Awake() => Instance = this;
 
@@ -42,10 +44,10 @@ public class QuestionManager : NetworkBehaviour
         RPC_StartSync(pool.questions.Length);
         foreach (var q in pool.questions)
         {
-            string o1 = q.options.Length > 0 ? q.options[0] : "";
-            string o2 = q.options.Length > 1 ? q.options[1] : "";
-            string o3 = q.options.Length > 2 ? q.options[2] : "";
-            string o4 = q.options.Length > 3 ? q.options[3] : "";
+            string o1 = q.options.Length > 0 ? q.options : "";
+            [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
+            [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
+            [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
             
             RPC_SyncSingleQuestion(q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
         }
@@ -56,20 +58,31 @@ public class QuestionManager : NetworkBehaviour
         Debug.Log("IA: Verificando si existen preguntas previas...");
         using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
         {
+            // ✓ CORRECCIÓN 2: Encabezado crítico para evadir la validación HTML de ngrok
+            webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
+            
             yield return webRequest.SendWebRequest();
             
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
-                QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
-                
-                if (pool.status == "completed" && pool.questions != null && pool.questions.Length > 0)
+                try
                 {
-                    Debug.Log("IA: Se encontraron preguntas existentes. Cargando...");
-                    SincronizarPreguntas(pool);
+                    QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
+                    
+                    if (pool != null && pool.status == "completed" && pool.questions != null && pool.questions.Length > 0)
+                    {
+                        Debug.Log("IA: Se encontraron preguntas existentes. Cargando...");
+                        SincronizarPreguntas(pool);
+                    }
+                    else
+                    {
+                        Debug.Log("IA: No hay preguntas listas. Esperando orden de generación.");
+                        if (TriviaUI.Instance != null) TriviaUI.Instance.ShowGenerateButton();
+                    }
                 }
-                else
+                catch (System.Exception e)
                 {
-                    Debug.Log("IA: No hay preguntas listas. Esperando orden de generación.");
+                    Debug.LogError("IA: Error parseando JSON de respuesta. Posible HTML corrupto: " + e.Message);
                     if (TriviaUI.Instance != null) TriviaUI.Instance.ShowGenerateButton();
                 }
             }
@@ -84,7 +97,9 @@ public class QuestionManager : NetworkBehaviour
     {
         using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/generate-questions"))
         {
+            webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
             yield return webRequest.SendWebRequest();
+            
             if (webRequest.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("Error al contactar a la IA: " + webRequest.error);
@@ -101,38 +116,41 @@ public class QuestionManager : NetworkBehaviour
 
             using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
             {
+                webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
                 yield return webRequest.SendWebRequest();
                 
                 if (webRequest.result == UnityWebRequest.Result.Success)
                 {
-                    QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
-                    
-                    if (pool.status == "completed" && pool.questions != null)
+                    try
                     {
-                        Debug.Log("IA: ¡Preguntas listas y descargadas!");
-                        finished = true; 
+                        QuestionPool pool = JsonUtility.FromJson<QuestionPool>(webRequest.downloadHandler.text);
                         
-                        RPC_StartSync(pool.questions.Length);
-                        foreach (var q in pool.questions)
+                        if (pool != null && pool.status == "completed" && pool.questions != null)
                         {
-                            string o1 = q.options.Length > 0 ? q.options[0] : "";
-                            string o2 = q.options.Length > 1 ? q.options[1] : "";
-                            string o3 = q.options.Length > 2 ? q.options[2] : "";
-                            string o4 = q.options.Length > 3 ? q.options[3] : "";
+                            Debug.Log("IA: ¡Preguntas listas y descargadas!");
+                            finished = true; 
+                            
+                            RPC_StartSync(pool.questions.Length);
+                            foreach (var q in pool.questions)
+                            {
+                                string o1 = q.options.Length > 0 ? q.options : "";
+                                [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
+                                [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
+                                [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
 
-                            // CORRECCIÓN: q.question en vez de q.text
-                            RPC_SyncSingleQuestion(q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
+                                RPC_SyncSingleQuestion(q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
+                            }
+                        }
+                        else if (pool != null && pool.status == "error")
+                        {
+                            Debug.LogError("IA: Hubo un error procesando el PDF en Ollama.");
+                            if (TriviaUI.Instance != null) TriviaUI.Instance.OnConnectionError();
+                            finished = true; 
                         }
                     }
-                    else if (pool.status == "error")
+                    catch
                     {
-                        Debug.LogError("IA: Hubo un error procesando el PDF en Ollama.");
-                        if (TriviaUI.Instance != null) TriviaUI.Instance.OnConnectionError();
-                        finished = true; 
-                    }
-                    else
-                    {
-                        Debug.Log("IA: Generando... por favor espere.");
+                        Debug.LogWarning("IA: Esperando estructura JSON limpia...");
                     }
                 }
             }
@@ -151,7 +169,6 @@ public class QuestionManager : NetworkBehaviour
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
     public void RPC_SyncSingleQuestion(string id, string question, string o1, string o2, string o3, string o4, int correct, string dificultad, int puntaje)
     {
-        // Forzamos un fallback por si acaso llega a viajar algo nulo
         Question q = new Question {
             id = string.IsNullOrEmpty(id) ? "0" : id,
             question = string.IsNullOrEmpty(question) ? "Pregunta Corrupta" : question,
@@ -193,10 +210,10 @@ public class QuestionManager : NetworkBehaviour
 
         foreach (var q in _questions)
         {
-            string o1 = q.options.Length > 0 ? q.options[0] : "";
-            string o2 = q.options.Length > 1 ? q.options[1] : "";
-            string o3 = q.options.Length > 2 ? q.options[2] : "";
-            string o4 = q.options.Length > 3 ? q.options[3] : "";
+            string o1 = q.options.Length > 0 ? q.options : "";
+            [cite_start]string o2 = q.options.Length > 1 ? q.options[1] : "";
+            [cite_start]string o3 = q.options.Length > 2 ? q.options[2] : "";
+            [cite_start]string o4 = q.options.Length > 3 ? q.options[3] : "";
 
             RPC_EnviarPreguntaATarget(nuevoJugador, q.id, q.question, o1, o2, o3, o4, q.correctAnswerIndex, q.dificultad, q.puntaje);
         }
@@ -237,15 +254,12 @@ public class QuestionManager : NetworkBehaviour
 
     public void SolicitarFeedbackFinal(int score, int total)
     {
-        // Ejecutamos la petición HTTP por corrutina al terminar la partida
         StartCoroutine(PostFeedbackRoutine(score, total));
     }
 
     private IEnumerator PostFeedbackRoutine(int score, int total)
     {
         string url = BASE_URL + "/generate-feedback";
-        
-        // Estructuramos el payload exactamente como lo requiere request.get_json() en app.py
         FeedbackRequest payload = new FeedbackRequest { score = score, total = total };
         string jsonBody = JsonUtility.ToJson(payload);
 
@@ -255,6 +269,9 @@ public class QuestionManager : NetworkBehaviour
             webRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
             webRequest.downloadHandler = new DownloadHandlerBuffer();
             webRequest.SetRequestHeader("Content-Type", "application/json");
+            
+            // Bypass para el método POST de feedback
+            webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
 
             webRequest.timeout = 300;
 
