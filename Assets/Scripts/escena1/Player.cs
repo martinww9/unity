@@ -20,8 +20,8 @@ public class Player : NetworkBehaviour
     [SerializeField] private float _sprintSpeed = 20f;
     
     [Header("Configuración de Cámara")]
-    [SerializeField] private Transform _cameraPivot; // ¡Asegúrate de asignar este objeto vacío en el Inspector!
-    public float mouseSensitivity = 2f;
+    [SerializeField] private Transform _cameraPivot;
+    public float mouseSensitivity = 6f;
 
     public static Player Local;
     private NetworkCharacterController _cc;
@@ -49,7 +49,7 @@ public class Player : NetworkBehaviour
                 if (_cameraPivot != null)
                 {
                     cam.Follow = _cameraPivot;
-                    cam.LookAt = _cameraPivot;
+                    //cam.LookAt = _cameraPivot;
                 }
             }
 
@@ -70,7 +70,6 @@ public class Player : NetworkBehaviour
 
             Transform cameraHolder = transform.Find("CameraHolder");
             if (cameraHolder != null) cameraHolder.gameObject.SetActive(false);
-            
             if (_cameraPivot != null) _cameraPivot.gameObject.SetActive(false);
         }
     }
@@ -94,7 +93,7 @@ public class Player : NetworkBehaviour
                 transform.Rotate(0, data.lookRotationDeltaX * mouseSensitivity, 0);
 
                 _pitch -= data.lookRotationDeltaY * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -85f, 85f); 
+                _pitch = Mathf.Clamp(_pitch, -80f, 80f); 
                 
             }
 
