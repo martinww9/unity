@@ -11,7 +11,7 @@ public class QuestionManager : NetworkBehaviour
     private Question[] _questions;
     public bool IsReady { get; private set; }
 
-    private const string BASE_URL = "http://localhost:5000/api";
+    private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev:5000/api";
 
     private void Awake() => Instance = this;
 
