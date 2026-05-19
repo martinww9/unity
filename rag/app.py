@@ -1,4 +1,6 @@
 # app.py
+import os
+import json
 import threading
 from flask import Flask, jsonify, request
 from jsonschema import validate, ValidationError
@@ -41,8 +43,27 @@ def run_generate_questions():
         return jsonify({"status": "indexing", "message": "Procesando archivos..."})
     if estado_actual == "generating": 
         return jsonify({"status": "generating", "message": "Trabajando..."})
+    if estado_actual == "completed" and len(ia_state["questions"]) > 0:
+        return jsonify({"status": "completed", "message": "Las preguntas ya están generadas y listas."})
     
-    # Reiniciar lista temporal bajo lock seguro
+    # === NUEVO: Intentar cargar desde el archivo local primero ===
+    if os.path.exists("preguntas_generadas.json"):
+        try:
+            with open("preguntas_generadas.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+                preguntas_guardadas = data.get("questions", [])
+                
+            if preguntas_guardadas: # Si el archivo tiene datos válidos
+                with state_lock:
+                    ia_state["questions"] = preguntas_guardadas
+                    ia_state["status"] = "completed"
+                print("✅ Preguntas cargadas instantáneamente desde 'preguntas_generadas.json'")
+                return jsonify({"status": "completed", "message": "Preguntas cargadas desde caché local."})
+        except Exception as e:
+            print(f"⚠️ Error leyendo preguntas_generadas.json, se generarán de nuevo: {e}")
+    # =============================================================
+
+    # Reiniciar lista temporal bajo lock seguro (si no hay caché)
     with state_lock:
         ia_state["status"] = "generating"
         ia_state["questions"] = []
