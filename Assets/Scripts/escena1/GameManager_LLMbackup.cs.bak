@@ -12,9 +12,6 @@ public class GameManager : NetworkBehaviour
     [Networked] public int FinishedPlayersCount { get; set; }
     [Networked] public bool IsRaceOver { get; set; }
     [Networked] public int FeedbacksCompleted { get; set; }
-    [Networked] public int CurrentLevel { get; set; } = 1;
-    [Networked] private TickTimer _levelTransitionTimer { get; set; }
-    [Networked] public bool IsTransitioningLevel { get; set; }
 
     private ChangeDetector _changeDetector;
     private const float CycleDuration = 13f;
@@ -33,16 +30,9 @@ public class GameManager : NetworkBehaviour
     public override void Render()
     {
         // Actualizar el timer visual en cada frame para todos
-        if (IsMatchStarted && TriviaUI.Instance != null && !IsRaceOver)
+        if (IsMatchStarted && TriviaUI.Instance != null)
         {
             TriviaUI.Instance.UpdateTimer(GetRemainingResponseTime());
-        }
-
-        // Mostrar cuenta regresiva de transición de nivel
-        if (IsTransitioningLevel && TriviaUI.Instance != null)
-        {
-            float remaining = _levelTransitionTimer.RemainingTime(Runner) ?? 0f;
-            TriviaUI.Instance.UpdateTimer(-1f); // Forzar modo "Siguiente nivel"
         }
 
         // Revisar qué variables han cambiado en la red
@@ -55,20 +45,10 @@ public class GameManager : NetworkBehaviour
                     break;
                     
                 case nameof(FinishedPlayersCount):
-                    if (FinishedPlayersCount > 0 && TriviaUI.Instance != null)
+                    if (FinishedPlayersCount > 0 && TriviaUI.Instance != null) 
                     {
                         // Actualiza y muestra el podio lateral para TODOS los jugadores en la sala
                         TriviaUI.Instance.UpdatePodiumLive();
-                    }
-                    break;
-
-                case nameof(IsRaceOver):
-                    if (IsRaceOver && TriviaUI.Instance != null)
-                    {
-                        if (CurrentLevel < 3)
-                            TriviaUI.Instance.ShowLevelTransition(CurrentLevel);
-                        else
-                            TriviaUI.Instance.ShowPodium();
                     }
                     break;
             }
@@ -77,30 +57,7 @@ public class GameManager : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
-        if (!Object.HasStateAuthority) return;
-
-        // Lógica de transición de nivel: esperar 5 segundos y cargar la siguiente escena
-        if (IsTransitioningLevel && _levelTransitionTimer.Expired(Runner))
-        {
-            IsTransitioningLevel = false;
-            CurrentLevel++;
-            
-            // Resetear variables de carrera para el nuevo nivel
-            IsRaceOver = false;
-            FinishedPlayersCount = 0;
-            FeedbacksCompleted = 0;
-            IsMatchStarted = false;
-            CurrentQuestionIndex = -1;
-            GlobalCycleTimer = TickTimer.None;
-            
-            // Cargar la siguiente escena (Level 2 = build index 2, Level 3 = build index 3)
-            SceneRef nextScene = SceneRef.FromIndex(CurrentLevel);
-            Debug.Log($"GameManager: Cargando nivel {CurrentLevel} (Scene build index: {CurrentLevel})...");
-            Runner.LoadScene(nextScene);
-            return;
-        }
-
-        if (IsMatchStarted && !IsRaceOver)
+        if (Object.HasStateAuthority && IsMatchStarted)
         {
             if (GlobalCycleTimer.ExpiredOrNotRunning(Runner))
             {
@@ -139,21 +96,9 @@ public class GameManager : NetworkBehaviour
             foreach(var p in Runner.ActivePlayers) totalPlayers++;
             
             // Si ya llegaron todos, la carrera termina
-            if (FinishedPlayersCount >= totalPlayers && !IsRaceOver)
+            if (FinishedPlayersCount >= totalPlayers)
             {
                 IsRaceOver = true;
-                
-                // Si no es el último nivel (hay 3 niveles en total), iniciar transición
-                if (CurrentLevel < 3)
-                {
-                    IsTransitioningLevel = true;
-                    _levelTransitionTimer = TickTimer.CreateFromSeconds(Runner, 5f);
-                    Debug.Log($"GameManager: Todos los jugadores terminaron el nivel {CurrentLevel}. Cargando siguiente nivel en 5 segundos...");
-                }
-                else
-                {
-                    Debug.Log("GameManager: ¡Todos los niveles completados! Fin del juego.");
-                }
             }
 
             return FinishedPlayersCount;

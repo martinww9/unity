@@ -1,0 +1,134 @@
+{
+    "questions": [
+        {
+            "id": "1_Fácil",
+            "question": "¿Qué significa el término?",
+            "options": [
+                "Un conjunto de principios para evaluar la accesibilidad",
+                "Un método para identificar problemas en las interfaces",
+                "Un conjunto de criterios para evaluar la complejidad",
+                "Un conjunto de principios para diseñar interfaces"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "2_Fácil",
+            "question": "¿Cuál es el concepto de retroalimentación en la teora del ciclo de retroalimentación?",
+            "options": [
+                "Aumentar el esfuerzo mental",
+                "Procesos de corto plazo",
+                "No proporcionar retroalimentación",
+                "Actuar, observar y ajustar"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "3_Fácil",
+            "question": "¿El sitio debe mostrar dónde te encuentras?",
+            "options": [
+                "Opción A: Siempre, es fundamental",
+                "Opción B: Solo si hay cambios significativos",
+                "Opción C: No es necesario",
+                "Opción D: Dependiendo del sistema"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "4_Fácil",
+            "question": "¿Qué función de la interfaz web ayuda a minimizar la carga de memoria del usuario?",
+            "options": [
+                "Reconocimiento: Recuperar información desde la memoria con ayuda de pistas.",
+                "Recuerdo: Recuperar información sin pistas explícitas.",
+                "La repetición refuerza la memoria y la información reciente es más fácil de recordar.",
+                "Usar autocompletado y sugerencias para facilitar la entrada de datos."
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "5_Media",
+            "question": "¿Quén es lo que ocurre cuando las interfaces web utilizan demasiados elementos visuales y se volvieron recargados y lentos?",
+            "options": [
+                "Los usuarios pueden encontrar la información más fácilmente",
+                "Las aplicaciones móviles son muy similares a las interfaces web",
+                "Los diseños imitan objetos del mundo real",
+                "La experiencia de usuario es muy similar a una aplicación mùvil"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "6_Media",
+            "question": "¿Cuál es el tipo de error donde la intención era correcta, pero se ejecutó la acción equivocada?",
+            "options": [
+                "A) Error (Mistake)",
+                "B) Desliz (Slip)",
+                "C) Errores de diseño",
+                "D) Problemas de hardware"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "7_Media",
+            "question": "¿Qué técnica se utiliza para facilitar la entrada de datos en una interfaz, reduciendo la carga de memoria del usuario?",
+            "options": [
+                "Autocompletado y sugerencias",
+                "Reconocimiento por voz",
+                "Memoria virtual",
+                "Almacenamiento en caché"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "8_Difícil",
+            "question": "¿Un algoritmo de búsqueda binaria tiene una complejidad temporal de O(log n). ¿Cuántos elementos puede buscar en un arreglo de tamaño 1000?",
+            "options": [
+                "A) 20",
+                "B) 50",
+                "C) 500",
+                "D) 1000"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "9_Difícil",
+            "question": "¿Un algoritmo de búsqueda ordenada tiene un tiempo de complejidad O(n^2). · Cuál es el problema principal con este algoritmo?",
+            "options": [
+                "El algoritmo no est© escalando bien para grandes conjuntos de datos.",
+                "El algoritmo no est© considerando la jerarquía del árbol binario.",
+                "El algoritmo tiene un tiempo de complejidad exponencial, lo que puede causar problemas en sistemas con muchos elementos.",
+                "El algoritmo no est© utilizando una búsqueda binaria eficiente."
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "10_Difícil",
+            "question": "¿Un sistema de gestión de proyectos tiene un algoritmo que determina el tiempo de entrega (Big O) en funcion del numero de tareas y recursos. Si se agregan más recursos, el tiempo de entrega aumenta en 20% cada vez. ¿Cuál es la complejidad temporal general de este algoritmo?",
+            "options": [
+                "Opción A: O(n^2)",
+                "Opción B: O(2^n)",
+                "Opción C: O(n log n)",
+                "Opción D: O(n)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        }
+    ]
+}

@@ -1,0 +1,134 @@
+{
+    "questions": [
+        {
+            "id": "1_Fácil",
+            "question": "¿Cuál es la clasificación de las estructuras de datos según su localización en la memoria?",
+            "options": [
+                "Estructuras contiguas y enlazadas",
+                "Contiguas y estáticas",
+                "Enlazadas y dinámicas",
+                "Estáticas y no enlazadas"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "2_Fácil",
+            "question": "¿Quén tipo de estructura de datos almacena sus datos en áreas adyacentes de memoria?",
+            "options": [
+                "Estructuras enlazadas",
+                "Estructuras contiguas",
+                "Matrices",
+                "Cadenas"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "3_Fácil",
+            "question": "¿Qué significa la heurística de 'Ayuda al usuario a reconocer, diagnosticar y recuperarse de errores'?",
+            "options": [
+                "Un proceso para evitar errores",
+                "Mensajes claros y específicos que ayudan al usuario a solucionar problemas",
+                "Una característica de una interfaz de usuario que permite la exploración del sistema",
+                "Una técnica para mejorar la usabilidad de un sitio web"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "4_Fácil",
+            "question": "¿Quén tipo de estructura de datos se relaciona a su posición relativa dentro de la estructura?",
+            "options": [
+                "A) Enlazada",
+                "B) Contigua",
+                "C) Dinámica",
+                "D) Estática"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "5_Media",
+            "question": "¿Cuál es el tiempo complejidad de la búsqueda en un array ordenado?",
+            "options": [
+                "Opción A: O(n)",
+                "Opción B: Θ(1)",
+                "Opción C: Ω(n^2)",
+                "Opción D: O(log n)"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "6_Media",
+            "question": "¿Cuál es el tipo de estructura de datos que se relaciona unos con otros mediante punteros?",
+            "options": [
+                "Estructuras contiguas",
+                "Estructuras enlazadas",
+                "Estructuras dinámicas",
+                "Estructuras estáticas"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "7_Media",
+            "question": "¿Cuál es el tipo de estructura de datos que se relaciona con sus datos mediante punteros?",
+            "options": [
+                "Opción A: Esttica",
+                "Opción B: Contigua",
+                "Opción C: Enlazada",
+                "Opción D: Dinámica"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "8_Difícil",
+            "question": "¿Un algoritmo de búsqueda binaria tiene una complejidad temporal de O(log n). Éstas la cantidad máxima de comparaciones que se realizarán en este caso?",
+            "options": [
+                "O(n)",
+                "O(log n) + k",
+                "O(2^n)",
+                "O(k log n)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "9_Difícil",
+            "question": "¿Análiza el algoritmo de búsqueda lineal y describe la complejidad temporal (Big O) del mismo, explicando por qué se considera una búsqueda lineal.?",
+            "options": [
+                "Opción A: O(1)",
+                "Opción B: O(n^2)",
+                "Opción C: O(log n)",
+                "Opción D: O(n!)"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "10_Difícil",
+            "question": "¿En el algoritmo de búsqueda binaria, si se encuentra el elemento buscado en la posición central del vector, ðque sucede con el vector?",
+            "options": [
+                "Se elimina la mitad del vector",
+                "No se modifica el vector",
+                "El elemento se mueve a la posición final",
+                "La búsqueda termina"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        }
+    ]
+}

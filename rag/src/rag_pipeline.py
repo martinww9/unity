@@ -4,6 +4,7 @@ import json
 import re
 import random
 import pymupdf
+import sys, pathlib
 from jsonschema import validate, ValidationError
 
 from llama_index.core import (
@@ -63,6 +64,12 @@ PATRONES_INSTITUCIONAL = [
 # Número de páginas iniciales a saltar por PDF (portada, contraportada, índice, etc.)
 PAGINAS_PORTADA = 1
 
+LLM_DIR = pathlib.Path(__file__).parent.parent / "llm_data"
+INDEX_DIR = LLM_DIR / "index"
+DATA_DIR = LLM_DIR / "raw_data"
+
+os.makedirs(INDEX_DIR, exist_ok=True)
+
 def configurar_modelos():
     """Configura el LLM y el modelo de embeddings en los Settings globales de LlamaIndex."""
     print("[1/4] Configurando modelo LLM...")
@@ -80,8 +87,8 @@ def configurar_modelos():
     Settings.llm = llm
     
     Settings.text_splitter = SentenceSplitter(
-        chunk_size=512,
-        chunk_overlap=50,
+        chunk_size=768,
+        chunk_overlap=150,
         paragraph_separator="\n\n"
     )
 
@@ -136,6 +143,25 @@ def nodo_util(texto):
 
     return True
 
+def procesar_nodos(documents):
+    """Lógica para asegurar que no queden nodos huérfanos o muy pequeños."""
+    parser = Settings.text_splitter
+    nodos_finales = []
+    
+    for doc in documents:
+        nodos = parser.get_nodes_from_documents([doc])
+        
+        # Filtrado inteligente
+        for i, nodo in enumerate(nodos):
+            if nodo_util(nodo.text):
+                nodos_finales.append(nodo)
+            else:
+                # Si es muy pequeño, intenta fusionarlo con el siguiente si existe
+                if i + 1 < len(nodos):
+                    nodos[i+1].text = nodo.text + "\n" + nodos[i+1].text
+    
+    return nodos_finales
+
 def preguntas_son_similares(q1: str, q2: str) -> bool:
     """Detecta preguntas semánticamente equivalentes normalizando el texto."""
     def normalizar(t):
@@ -180,8 +206,8 @@ def extraer_texto_pdf(data_dir: str) -> list:
                 print(f"      [ERR] {fname}: {e}")
     return documentos
 
-def cargar_o_crear_index(data_dir="data", storage_dir="storage"):
-    """Inicializa, sincroniza y retorna el VectorStoreIndex corporativo."""
+def cargar_o_crear_index(data_dir=DATA_DIR, storage_dir=INDEX_DIR):
+    """Inicializa, sincroniza y retorna el VectorStoreIndex con fragmentación semántica."""
     global _idx
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
@@ -207,7 +233,7 @@ def cargar_o_crear_index(data_dir="data", storage_dir="storage"):
         _idx = load_index_from_storage(storage_context)
         return _idx
 
-    print(f"      -> Procesando PDFs con clonación inmutable...")
+    print(f"      -> Procesando PDFs con fragmentación semántica...")
     documents = extraer_texto_pdf(data_dir)
     
     if not documents:
@@ -215,27 +241,27 @@ def cargar_o_crear_index(data_dir="data", storage_dir="storage"):
         _idx = VectorStoreIndex.from_documents([])
         return _idx
 
-    print("\n" + "="*50)
-    print("DIAGNÓSTICO: MUESTRA DEL TEXTO EXTRAÍDO DEL PDF:")
-    if documents: print(documents[0].get_content()[:400])
-    print("="*50 + "\n")
-
-    documentos_limpios = []
-    for doc in documents:
-        texto_limpio = limpiar_texto(doc.get_content())
-        nuevo_doc = Document(text=texto_limpio, metadata=doc.metadata)
-        documentos_limpios.append(nuevo_doc)
+    # Aplicamos la limpieza y la fragmentación semántica
+    docs_limpios = [Document(text=limpiar_texto(d.get_content()), metadata=d.metadata) for d in documents]
+    nodos_optimizados = procesar_nodos(docs_limpios)
 
     if not os.path.exists(storage_dir):
-        print(f"[3/4] Creando índice nuevo desde cero...")
-        _idx = VectorStoreIndex.from_documents(documentos_limpios, show_progress=True, embed_model=Settings.embed_model)
+        print(f"[3/4] Creando índice nuevo desde cero con {len(nodos_optimizados)} nodos optimizados...")
+        _idx = VectorStoreIndex(nodos_optimizados, show_progress=True, embed_model=Settings.embed_model)
         _idx.storage_context.persist(persist_dir=storage_dir)
     else:
-        print(f"[3/4] Actualizando índice...")
-        storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-        _idx = load_index_from_storage(storage_context)
-        cambios_realizados = _idx.refresh_ref_docs(documentos_limpios, show_progress=True)
-        if any(cambios_realizados):
+        # VERIFICACIÓN DE SEGURIDAD
+        if os.path.exists(docstore_path):
+            print(f"[3/4] Actualizando índice existente...")
+            storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
+            _idx = load_index_from_storage(storage_context)
+            cambios_realizados = _idx.refresh_ref_docs(nodos_optimizados, show_progress=True)
+            if any(cambios_realizados):
+                _idx.storage_context.persist(persist_dir=storage_dir)
+        else:
+            # Si la carpeta existe pero el archivo NO, es un estado inconsistente. Borramos y recreamos.
+            print(f"[!] Índice inconsistente detectado. Recreando...")
+            _idx = VectorStoreIndex(nodos_optimizados, show_progress=True, embed_model=Settings.embed_model)
             _idx.storage_context.persist(persist_dir=storage_dir)
             
     return _idx
@@ -255,22 +281,19 @@ def validar_pregunta(q):
         return False
 
 def _temas_fallback() -> list:
-    """Temas genéricos de informática usados cuando la inferencia falla."""
+    """Sub-temas altamente específicos usados cuando la inferencia falla."""
     return [
-        "tipos de malware ransomware trojan worm", "ataques red phishing spoofing sniffing",
-        "cifrado criptografía encryption AES RSA", "firewall IDS IPS detección intrusos",
-        "vulnerabilidades CVE exploit buffer overflow", "autenticación MFA contraseñas hash",
-        "seguridad redes VPN DMZ protocolos", "ingeniería social manipulación víctima",
-        "mitigaciones parches hardening configuración", "normativas ISO 27001 NIST cumplimiento",
-        "experiencia del usuario", "interfaces de usuario", "accesibilidad", "heurísticas de Nielsen"
+        "complejidad temporal de algoritmos de ordenamiento", "resolución de colisiones en tablas hash",
+        "recorridos inorden preorden postorden", "balanceo de árboles AVL",
+        "diferencias entre pilas (LIFO) y colas (FIFO)", "punteros en listas doblemente enlazadas",
+        "ataques de inyección SQL ciegos", "mitigación de cross-site scripting (XSS)",
+        "handshake de tres vías en TCP", "heurísticas de evaluación de usabilidad"
     ]
 
-def inferir_temas_desde_indice(n_temas: int = 10) -> list:
-    """Extrae términos representativos del corpus para usar como temas de búsqueda.
-    Aplica nodo_util() antes de muestrear para excluir chunks institucionales.
-    """
+def inferir_temas_desde_indice(n_temas: int = 15) -> list:
+    """Extrae sub-tópicos altamente específicos del corpus para usar como anclas de búsqueda."""
     todos = list(_idx.docstore.docs.values())
-    utiles = [n for n in todos if nodo_util(n.text)]  # ← fix 3: filtra antes de muestrear
+    utiles = [n for n in todos if nodo_util(n.text)]
 
     if not utiles:
         print("[!] inferir_temas: no hay nodos útiles, usando fallback.")
@@ -280,19 +303,22 @@ def inferir_temas_desde_indice(n_temas: int = 10) -> list:
     texto_muestra = "\n\n".join([n.text for n in muestra])
 
     prompt = f"""
-Del siguiente texto académico, extrae {n_temas} temas o conceptos técnicos clave.
+Del siguiente texto académico, extrae {n_temas} sub-temas o conceptos técnicos ALTAMENTE ESPECÍFICOS.
+PROHIBIDO usar categorías amplias como "Estructuras de Datos", "Redes" o "Seguridad". 
+Debes ir al detalle granular. Ejemplo correcto: "Colisiones en Tablas Hash", "Algoritmo de Dijkstra", "Normalización 3NF".
+
 Devuelve SOLO un JSON con una lista de strings, sin texto adicional.
-{{"temas": ["tema 1", "tema 2", ...]}}
+{{"temas": ["sub-tema 1", "sub-tema 2", ...]}}
 
 TEXTO:
-{texto_muestra[:3000]}
+{texto_muestra[:3500]}
 """
     try:
         response = Settings.llm.complete(prompt)
         data = json.loads(extraer_json(response.text))
         temas = data.get("temas", [])
         if temas:
-            print(f"[IA] Temas inferidos del corpus: {temas}")
+            print(f"[IA] Sub-temas específicos inferidos: {temas}")
             return temas
     except Exception as e:
         print(f"[!] inferir_temas: error al inferir ({e}), usando fallback.")
@@ -343,36 +369,38 @@ FORMATO DE RESPUESTA:
             print(f"    [CRÍTICO] Error intento {intento+1}: {e}")
     return pregunta
 
-def ejecutar_pipeline_preguntas(ia_state, state_lock):
-    """Tarea iterativa para generar las preguntas. Recibe el estado para actualizarlo de forma segura."""
+def ejecutar_pipeline_preguntas(ia_state, state_lock, archivo_salida="data/preguntas_generadas.json"):
+    """Tarea iterativa para generar las preguntas seccionadas por dificultad cognitiva."""
     global _idx
     if _idx is None:
         print("[!] Error: No se puede generar preguntas sin un índice inicializado.")
         return
 
     conceptos_usados = set()
-
-    print("[IA] Generando preguntas...")
+    print("[IA] Generando preguntas con topología académica...")
+    
+    # Seccionamiento: 4 Fáciles, 3 Medias, 3 Difíciles
     dificultades = [
         ("Fácil", 10), ("Fácil", 10), ("Fácil", 10), ("Fácil", 10),
         ("Media", 20), ("Media", 20), ("Media", 20),
         ("Difícil", 30), ("Difícil", 30), ("Difícil", 30)
     ]
 
-    temas_busqueda = inferir_temas_desde_indice(n_temas=10)
+    temas_busqueda = inferir_temas_desde_indice(n_temas=15)
     preguntas_generadas = []
 
     total_objetivo = len(dificultades)
     guardadas = 0
     intentos_globales = 0
-    MAX_INTENTOS_GLOBALES = total_objetivo * 3  # techo de seguridad: máximo 30 ciclos
+    MAX_INTENTOS_GLOBALES = total_objetivo * 4
 
     while guardadas < total_objetivo and intentos_globales < MAX_INTENTOS_GLOBALES:
         dificultad, puntaje = dificultades[guardadas]
         intentos_globales += 1
 
+        # Rotamos inteligentemente por los sub-temas específicos
         tema_actual = temas_busqueda[intentos_globales % len(temas_busqueda)]
-        nodos_brutos = _idx.as_retriever(similarity_top_k=6).retrieve(tema_actual)
+        nodos_brutos = _idx.as_retriever(similarity_top_k=5).retrieve(tema_actual)
         nodos_filtrados = [n for n in nodos_brutos if nodo_util(n.text)]
 
         if not nodos_filtrados:
@@ -380,27 +408,34 @@ def ejecutar_pipeline_preguntas(ia_state, state_lock):
             nodos_filtrados = [n for n in todos_los_nodos if nodo_util(n.text)]
             if nodos_filtrados:
                 nodos_filtrados = random.sample(nodos_filtrados, min(3, len(nodos_filtrados)))
-            else:
-                nodos_filtrados = nodos_brutos
 
-        nodos_utiles = [n for n in nodos_filtrados if nodo_util(n.text)]
-        contexto = "\n\n".join([n.text for n in nodos_utiles[:3]])
+        contexto = "\n\n".join([n.text for n in nodos_filtrados[:3]])
+
+        # Definir la exigencia cognitiva según la dificultad
+        regla_dificultad = ""
+        if dificultad == "Fácil":
+            regla_dificultad = "Evalúa RECONOCIMIENTO Y MEMORIA. Pregunta por definiciones exactas, características básicas o identificar para qué sirve el concepto."
+        elif dificultad == "Media":
+            regla_dificultad = "Evalúa COMPRENSIÓN Y APLICACIÓN. Pregunta por el resultado de aplicar una técnica, diferencias clave entre dos conceptos, o cómo funciona un proceso paso a paso."
+        elif dificultad == "Difícil":
+            regla_dificultad = "Evalúa ANÁLISIS Y RESOLUCIÓN. Plantea un escenario, un problema técnico, complejidad temporal (Big O), casos límite o identifica errores conceptuales."
 
         prompt = f"""
-CONTEXTO DE ESTUDIO:
+CONTEXTO TÉCNICO (Sub-tema enfocado: {tema_actual}):
 {contexto}
 
-INSTRUCCIONES:
-- Genera UNA pregunta técnica basada SOLO en conceptos explícitamente mencionados en el contexto.
-- Si el contexto no contiene información técnica útil, genera una pregunta sobre: Ingeniería Informática.
-- PROHIBIDO usar la frase "el contexto proporcionado" en el texto de la pregunta.
-- Nivel: {dificultad} | Puntaje: {puntaje}
+INSTRUCCIONES ACADÉMICAS:
+- Genera UNA pregunta de opción múltiple basada estrictamente en el contexto.
+- NIVEL COGNITIVO REQUERIDO ({dificultad}): {regla_dificultad}
+- Las 3 opciones incorrectas deben ser distractores plausibles y técnicos, no respuestas obvias.
+- PROHIBIDO usar frases como "según el texto" o "en el contexto".
+- Puntaje de la pregunta: {puntaje}
 
 JSON REQUERIDO:
 {{
     "id": "{guardadas + 1}_{dificultad}",
-    "question": "¿Pregunta técnica concreta?",
-    "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+    "question": "¿Pregunta técnica concreta y directa?",
+    "options": ["Opción A (técnica)", "Opción B", "Opción C", "Opción D"],
     "correctAnswerIndex": 0,
     "dificultad": "{dificultad}",
     "puntaje": {puntaje}
@@ -418,34 +453,35 @@ JSON REQUERIDO:
                 pass
 
         if not pregunta_valida:
-            print(f"[!] Ciclo {intentos_globales}: no se obtuvo pregunta válida, reintentando...")
             continue
 
         contexto_usado = "\n\n".join([n.text for n in nodos_filtrados[:3]])
         pregunta_revisada = pasar_por_critico(pregunta_valida, contexto_usado)
-
+        
+        # Evitar preguntas repetidas semánticamente
         if any(preguntas_son_similares(pregunta_revisada["question"], q) for q in conceptos_usados):
-            print(f"[~] Ciclo {intentos_globales}: duplicada semántica, buscando variante...")
+            print(f"[~] Ciclo {intentos_globales}: pregunta semánticamente similar detectada, buscando variante...")
             continue
 
-        # Pregunta única y válida: guardar
         conceptos_usados.add(pregunta_revisada["question"])
         pregunta_revisada["id"] = f"{guardadas + 1}_{dificultad}"
         preguntas_generadas.append(pregunta_revisada)
+        
         with state_lock:
             ia_state["questions"].append(pregunta_revisada)
+            
         guardadas += 1
-        print(f"[✓] {guardadas}/{total_objetivo}: {pregunta_revisada['question'][:45]}...")
+        print(f"[✓] {guardadas}/{total_objetivo} [{dificultad} - {tema_actual[:30]}]: {pregunta_revisada['question'][:50]}...")
 
     if guardadas < total_objetivo:
-        print(f"[!] Techo alcanzado: se generaron {guardadas}/{total_objetivo} preguntas.")
+        print(f"[!] Límite de intentos alcanzado. Se generaron {guardadas}/{total_objetivo} preguntas.")
 
     with state_lock:
         ia_state["status"] = "completed"
 
-    with open("preguntas_generadas.json", "w", encoding="utf-8") as f:
+    with open(archivo_salida, "w", encoding="utf-8") as f:
         json.dump({"questions": preguntas_generadas}, f, ensure_ascii=False, indent=4)
-
+        
 def ejecutar_pipeline_feedback(puntaje, total):
     """Ejecuta una inferencia RAG síncrona para obtener el feedback de fin de carrera."""
     global _idx

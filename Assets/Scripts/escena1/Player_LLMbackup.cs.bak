@@ -42,7 +42,16 @@ public class Player : NetworkBehaviour
         if (Object.HasInputAuthority) // ¡SI SOY EL JUGADOR LOCAL!
         {
             Local = this;
-            VincularCamaraDeEscenaActual();
+            // 2. Le decimos a Cinemachine que NUESTRAS cámaras nos sigan y miren a nuestro Pivot
+            foreach (var cam in vCams)
+            {
+                cam.enabled = true; // Nos aseguramos de que estén encendidas
+                if (_cameraPivot != null)
+                {
+                    cam.Follow = _cameraPivot;
+                    //cam.LookAt = _cameraPivot;
+                }
+            }
 
             // Opcional: Ocultamos nuestro propio cuerpo local para que no tape la cámara en primera persona
             Transform meshTransform = transform.Find("Mesh");
@@ -50,6 +59,18 @@ public class Player : NetworkBehaviour
             
             Transform armorsTransform = transform.Find("Armors");
             if (armorsTransform != null) armorsTransform.gameObject.SetActive(false);
+        }
+        else // ¡SI ES UN RIVAL EN MI PANTALLA!
+        {
+            // 3. APAGAMOS por completo sus componentes de cámara para que no secuestren nuestra pantalla
+            foreach (var cam in vCams)
+            {
+                cam.enabled = false;
+            }
+
+            Transform cameraHolder = transform.Find("CameraHolder");
+            if (cameraHolder != null) cameraHolder.gameObject.SetActive(false);
+            if (_cameraPivot != null) _cameraPivot.gameObject.SetActive(false);
         }
     }
 
@@ -254,51 +275,4 @@ public class Player : NetworkBehaviour
             TriviaUI.Instance.UpdatePodiumLive();
         }
     }
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    public void RPC_ResetForNewLevel()
-    {
-        // Solo el StateAuthority puede modificar propiedades [Networked]
-        if (Object.HasStateAuthority)
-        {
-            State = EPlayerState.Advancing;
-            PlayerRank = 0;
-            LastAnsweredIndex = -1;
-            RespuestasCorrectas = 0;
-        }
-        
-        // El índice local de pregunta mostrada se resetea en cada cliente
-        _lastDisplayedQuestionIndex = -1;
-        
-        Debug.Log($"Player {Object.InputAuthority}: Estado reiniciado para nuevo nivel.");
-        
-        // Notificar a la UI local que limpie los paneles entre niveles
-        if (Object.HasInputAuthority && TriviaUI.Instance != null)
-        {
-            TriviaUI.Instance.ClearUIBetweenLevels();
-        }
-    }
-    public void VincularCamaraDeEscenaActual()
-{
-    // Solo el jugador que controla esta pantalla debe mover la cámara de su escena
-    if (!Object.HasInputAuthority) return;
-
-    // Buscamos la cámara virtual de Cinemachine 3.0 que está suelta en la escena
-    var cmCamera = GameObject.FindFirstObjectByType<Unity.Cinemachine.CinemachineCamera>();
-
-    if (cmCamera != null && _cameraPivot != null)
-    {
-        // Forzamos los objetivos de tracking al pivote de este jugador local
-        cmCamera.Target.TrackingTarget = _cameraPivot;
-        cmCamera.Target.LookAtTarget = _cameraPivot;
-        
-        // Nos aseguramos de que esté activa y con alta prioridad
-        cmCamera.Priority = 10;
-        
-        Debug.Log($"[Camara] Vinculada con éxito al pivote de {gameObject.name} en esta escena.");
-    }
-    else
-    {
-        Debug.LogWarning("[Camara] No se encontró 'CinemachineCamera' en la escena o falta el '_cameraPivot' en el script.");
-    }
-}
 }

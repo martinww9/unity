@@ -5,7 +5,6 @@ using Fusion.Sockets;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using Unity.Cinemachine;
 using TMPro;
 
 
@@ -307,88 +306,12 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnSceneLoadDone(NetworkRunner runner) {
         Debug.Log("Entramos a la sesión. Mostrando Lobby.");
         Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        Cursor.visible = true; 
 
         OcultarTodosLosPaneles();
 
         if (_menuCanvas != null) _menuCanvas.SetActive(false);
         if (_menuCamera != null) _menuCamera.SetActive(false);
-
-        // Si ya hay jugadores spawneados, significa que estamos en una transición de nivel
-        if (_spawnedCharacters.Count > 0)
-        {
-            RepositionarJugadoresEnNuevaEscena();
-        }
-        GameObject cam = GameObject.FindGameObjectWithTag("MainCamera");
-        if (cam != null) {
-            cam.SetActive(false);
-            cam.SetActive(true);
-        }
-    }
-    private void ReasignarCamara(GameObject player)
-    {
-        // Buscamos el componente CinemachineCamera (el nuevo nombre)
-        var cmCamera = GameObject.FindObjectOfType<CinemachineCamera>();
-        
-        if (cmCamera != null)
-        {
-            // Asignamos el pivote de la cámara al nuevo Tracking Target
-            Transform pivot = player.transform.Find("CameraPivot");
-            if (pivot != null)
-            {
-                cmCamera.Target.TrackingTarget = pivot;
-                cmCamera.Target.LookAtTarget = pivot;
-            }
-        }
-    }
-    private void RepositionarJugadoresEnNuevaEscena()
-    {
-        // 1. Buscamos de forma más segura
-        GameObject spawnPointsObj = GameObject.Find("SpawnPoints");
-        if (spawnPointsObj == null)
-        {
-            Debug.LogError("Spawner: ¡NO SE ENCONTRÓ EL OBJETO 'SpawnPoints' EN LA ESCENA!");
-            return;
-        }
-
-        // 2. Usamos GetComponentsInChildren ignorando al padre
-        List<Transform> validSpawnPoints = new List<Transform>();
-        foreach (Transform child in spawnPointsObj.transform)
-        {
-            validSpawnPoints.Add(child);
-        }
-
-        int index = 0;
-        foreach (var kvp in _spawnedCharacters)
-        {
-            NetworkObject no = kvp.Value;
-            Player playerComp = no.GetComponent<Player>();
-            if (no != null)
-            {
-                Vector3 spawnPos = (validSpawnPoints.Count > 0) ? validSpawnPoints[index % validSpawnPoints.Count].position : Vector3.zero;
-                Quaternion spawnRot = (validSpawnPoints.Count > 0) ? validSpawnPoints[index % validSpawnPoints.Count].rotation : Quaternion.identity;
-                
-                // IMPORTANTE: Si usas NetworkCharacterController, usa Teleport
-                var cc = no.GetComponent<NetworkCharacterController>();
-                if (cc != null)
-                {
-                    cc.Teleport(spawnPos);
-                }
-                else
-                {
-                    no.transform.position = spawnPos;
-                }
-                no.transform.rotation = spawnRot;
-                
-                if (playerComp != null)
-                {
-                    playerComp.RPC_ResetForNewLevel();
-                    playerComp.VincularCamaraDeEscenaActual();
-                }
-                ReasignarCamara(no.gameObject);
-                index++;
-            }
-        }
     }
     void INetworkRunnerCallbacks.OnSceneLoadStart(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

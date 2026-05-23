@@ -13,8 +13,9 @@ public class QuestionManager : NetworkBehaviour
     public bool IsReady { get; private set; }
 
     // ✓ CORRECCIÓN 1: Se eliminó el puerto :5000 redundante para ngrok
-    private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev/api";
-
+    // private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev/api";
+    private const string BASE_URL = "localhost:5000/api"; // Para pruebas locales, ngrok se encargará de redirigir correctamente
+    
     private void Awake() => Instance = this;
 
     public override void Spawned()
@@ -56,7 +57,7 @@ public class QuestionManager : NetworkBehaviour
     IEnumerator CheckExistingQuestions()
     {
         Debug.Log("IA: Verificando si existen preguntas previas...");
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
+        using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/questions/get"))
         {
             // ✓ CORRECCIÓN 2: Encabezado crítico para evadir la validación HTML de ngrok
             webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
@@ -95,9 +96,22 @@ public class QuestionManager : NetworkBehaviour
 
     IEnumerator GenerateAndDownloadQuestions()
     {
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/generate-questions"))
+        string url = BASE_URL + "/questions/generate";
+        
+        // Creamos el payload en JSON con el identificador de la trivia (útil si luego quieres tener múltiples salas)
+        string jsonBody = "{\"trivia_id\": \"default\"}"; 
+
+        using (UnityWebRequest webRequest = new UnityWebRequest(url, "POST"))
         {
+            // Convertimos el string a bytes y lo inyectamos en el cuerpo del POST
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+            webRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            webRequest.downloadHandler = new DownloadHandlerBuffer();
+            
+            // Cabeceras estrictas
+            webRequest.SetRequestHeader("Content-Type", "application/json");
             webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
+            
             yield return webRequest.SendWebRequest();
             
             if (webRequest.result != UnityWebRequest.Result.Success)
@@ -109,12 +123,13 @@ public class QuestionManager : NetworkBehaviour
             Debug.Log("IA: Generación iniciada en el servidor...");
         }
 
+        // El ciclo de Polling con GET se mantiene igual, ya que el endpoint /questions/get sí es GET
         bool finished = false;
         while (!finished)
         {
             yield return new WaitForSeconds(3f);
 
-            using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/get-all-questions"))
+            using (UnityWebRequest webRequest = UnityWebRequest.Get(BASE_URL + "/questions/get"))
             {
                 webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
                 yield return webRequest.SendWebRequest();
@@ -252,14 +267,16 @@ public class QuestionManager : NetworkBehaviour
         }
     }
 
-    public void SolicitarFeedbackFinal(int score, int total)
+    public void SolicitarFeedbackFinal(string playerId, int score, int total)
     {
-        StartCoroutine(PostFeedbackRoutine(score, total));
+        StartCoroutine(PostFeedbackRoutine(playerId, score, total));
     }
 
-    private IEnumerator PostFeedbackRoutine(int score, int total)
+    private IEnumerator PostFeedbackRoutine(string playerId, int score, int total)
     {
-        string url = BASE_URL + "/generate-feedback";
+        // ✓ CONFIGURADO: Endpoint exacto solicitado: api/feedback/generate/{id}
+        string url = BASE_URL + "/feedback/generate" + "/" + playerId;
+        
         FeedbackRequest payload = new FeedbackRequest { score = score, total = total };
         string jsonBody = JsonUtility.ToJson(payload);
 
@@ -269,18 +286,16 @@ public class QuestionManager : NetworkBehaviour
             webRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
             webRequest.downloadHandler = new DownloadHandlerBuffer();
             webRequest.SetRequestHeader("Content-Type", "application/json");
-            
-            // Bypass para el método POST de feedback
             webRequest.SetRequestHeader("ngrok-skip-browser-warning", "69420");
 
-            webRequest.timeout = 300;
+            webRequest.timeout = 300; // 5 minutos de margen para Ollama
 
             yield return webRequest.SendWebRequest();
 
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
                 FeedbackData data = JsonUtility.FromJson<FeedbackData>(webRequest.downloadHandler.text);
-                Debug.Log("IA: Planilla de Feedback generada y validada.");
+                Debug.Log($"IA: Feedback guardado en el servidor para {playerId} y descargado en Unity.");
                 
                 if (TriviaUI.Instance != null)
                 {
@@ -290,6 +305,7 @@ public class QuestionManager : NetworkBehaviour
             else
             {
                 Debug.LogError("IA: Error al procesar la retroalimentación: " + webRequest.error);
+                if (TriviaUI.Instance != null) TriviaUI.Instance.DesbloquearBotonPorError();
             }
         }
     }

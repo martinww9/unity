@@ -76,6 +76,9 @@ sysinfo.txt
 # Mono auto generated files
 mono_crash.*
 
+# Unity recovery files
+_Recovery/
+
 # Builds
 *.apk
 *.aab
@@ -114,3 +117,5 @@ InitTestScene*.unity*
 .python-version
 pyproject.*
 uv.lock
+
+.roo*

@@ -39,8 +39,6 @@ public class TriviaUI : MonoBehaviour
 
     private FeedbackData _cachedFeedbackData;
     private bool _esperandoFeedback = false;
-    private int _puntajeGuardado;
-    private int _totalPreguntasGuardado;
 
     private void Awake() 
     {
@@ -85,45 +83,43 @@ public class TriviaUI : MonoBehaviour
 
     public void RegistrarFinDeCarreraLocal(int score, int total)
     {
-        _cachedFeedbackData = null; 
-        _esperandoFeedback = false; // Aún no está en cola de Flask
+        _cachedFeedbackData = null;
+        _esperandoFeedback = true;
         
-        // Guardamos los datos localmente en la UI
-        _puntajeGuardado = score;
-        _totalPreguntasGuardado = total;
-
         if (_botonVerFeedback != null)
         {
-            _botonVerFeedback.interactable = true; // ¡Habilitado para hacer click!
-            if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Generar Mi Feedback (IA)";
+            _botonVerFeedback.interactable = false;
+            if (_textoBotonFeedback != null) _textoBotonFeedback.text = " Profesor corrigiendo...";
+        }
+
+        // Disparamos la corrutina HTTP de tu QuestionManager de forma asíncrona
+        if (QuestionManager.Instance != null)
+        {
+            QuestionManager.Instance.SolicitarFeedbackFinal(score, total);
         }
     }
     
     public void ShowFeedback(FeedbackData data)
     {
-        _cachedFeedbackData = data; 
-        _esperandoFeedback = false; 
-
-        if (_botonVerFeedback != null) _botonVerFeedback.interactable = true; // Se vuelve a iluminar
-        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver Evaluación IA";
-        if (GameManager.Instance != null) GameManager.Instance.RPC_FeedbackCompletado();
-    }
-
-    public void DesbloquearBotonPorError()
-    {
+        _cachedFeedbackData = data; // Almacenamos el reporte académico en la memoria caché
         _esperandoFeedback = false;
-        if (_botonVerFeedback != null) _botonVerFeedback.interactable = true;
-        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Reintentar Feedback";
+
+            if (_botonVerFeedback != null) _botonVerFeedback.interactable = true; // ¡Desbloqueado! El jugador ya puede pulsar el botón
+            if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver Evaluación IA";
+            if (GameManager.Instance != null) GameManager.Instance.RPC_FeedbackCompletado();
     }
 
-    private void UI_MostrarPanelFeedbackOculto()
+    public void UI_BotonMostrarPanelFeedbackOculto()
     {
+        if (_cachedFeedbackData == null) return;
+
         if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(true);
         if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
 
         if (textoMensajeGeneral != null && !string.IsNullOrEmpty(_cachedFeedbackData.mensaje_general)) 
             textoMensajeGeneral.text = _cachedFeedbackData.mensaje_general;
 
+        // Mapeo bilingüe tolerante a fallos
         string[] fuertes = (_cachedFeedbackData.fortalezas != null && _cachedFeedbackData.fortalezas.Length > 0) ? _cachedFeedbackData.fortalezas : _cachedFeedbackData.strengths;
         string[] mejoras = (_cachedFeedbackData.areas_mejora != null && _cachedFeedbackData.areas_mejora.Length > 0) ? _cachedFeedbackData.areas_mejora : _cachedFeedbackData.weaknesses;
 
@@ -335,84 +331,5 @@ public class TriviaUI : MonoBehaviour
     {
         // Cuando el servidor avisa que empezó la partida, ocultamos el lobby
         if (_panelLobby != null) _panelLobby.SetActive(false);
-    }
-
-    /// <summary>
-    /// Limpia todos los paneles de UI entre niveles: podio, línea de meta, feedback,
-    /// y el panel principal de trivia, para dejar la pantalla lista para el nuevo nivel.
-    /// </summary>
-    public void ClearUIBetweenLevels()
-    {
-        // Ocultar panel de podio (rankings)
-        if (_panelPodio != null) _panelPodio.SetActive(false);
-        
-        // Ocultar panel de "¡Llegaste!" (finish line personal)
-        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
-        
-        // Ocultar panel de feedback final de IA
-        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(false);
-        
-        // Ocultar panel principal de trivia (preguntas)
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
-        
-        // Resetear el índice de selección de respuesta
-        LastSelectedIndex = -1;
-        
-        // Limpiar datos cacheados de feedback
-        _cachedFeedbackData = null;
-        _esperandoFeedback = false;
-        
-        // Deshabilitar botón de feedback hasta que sea relevante de nuevo
-        if (_botonVerFeedback != null) _botonVerFeedback.interactable = false;
-        
-        Debug.Log("TriviaUI: UI completamente limpiada para el nuevo nivel.");
-    }
-
-    /// <summary>
-    /// Muestra un mensaje de transición indicando que se va a cargar el siguiente nivel.
-    /// Llamado desde GameManager.Render() cuando IsRaceOver cambia y no es el último nivel.
-    /// </summary>
-    public void ShowLevelTransition(int currentLevel)
-    {
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
-        
-        if (_panelLlegaste != null && !_panelLlegaste.activeSelf)
-        {
-            _panelLlegaste.SetActive(true);
-        }
-        
-        // Intentar mostrar el texto de transición en el timer existente
-        if (_timerText != null)
-        {
-            _timerText.text = $"¡Nivel {currentLevel} completado!\nCargando nivel {currentLevel + 1}...";
-            _timerText.color = Color.green;
-        }
-        
-        Debug.Log($"TriviaUI: Mostrando transición del nivel {currentLevel} al {currentLevel + 1}.");
-    }
-    public void UI_BotonAccionFeedback()
-    {
-        // CASO 1: Si aún no se ha generado el feedback, enviamos la solicitud a Flask
-        if (_cachedFeedbackData == null)
-        {
-            if (Player.Local == null) return;
-
-            // Creamos el identificador string a partir del ID de Photon Fusion (Ej: "Player_2")
-            string stringPlayerId = "Player_" + Player.Local.Object.InputAuthority.PlayerId;
-
-            if (_botonVerFeedback != null) _botonVerFeedback.interactable = false; // Bloquear antispam
-            if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Generando feedback...";
-            _esperandoFeedback = true;
-
-            if (QuestionManager.Instance != null)
-            {
-                QuestionManager.Instance.SolicitarFeedbackFinal(stringPlayerId, _puntajeGuardado, _totalPreguntasGuardado);
-            }
-        }
-        // CASO 2: Si la IA ya respondió y guardamos el JSON, abrimos el panel visual
-        else
-        {
-            UI_MostrarPanelFeedbackOculto();
-        }
     }
 }
