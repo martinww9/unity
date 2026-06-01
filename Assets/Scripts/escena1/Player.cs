@@ -7,18 +7,24 @@ public enum EPlayerState { Responding, Stunned, Advancing, Finished }
 public class Player : NetworkBehaviour
 {
     [Networked] public EPlayerState State { get; set; }
+    [Networked] public int CurrentLevel { get; set; } = 1;
+    [Networked] public int LevelQuestionIndex { get; set; } = -1;
+    [Networked] private TickTimer LevelCycleTimer { get; set; }
     [Networked] private TickTimer _stunTimer { get; set; }
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
     [Networked] public int PlayerRank { get; set; }
     [Networked] public int RespuestasCorrectas { get; set; }
-    
+    [Networked] public int PuntajeObtenido { get; set; }
     [Networked] private float _pitch { get; set; }
+
+    private const float CycleDuration = 13f;
+    private const float ResponseWindow = 10f;
 
     private int _lastDisplayedQuestionIndex = -1;
     [SerializeField] private Animator _animator;
     [SerializeField] private float _forwardSpeed = 12f;
     [SerializeField] private float _sprintSpeed = 20f;
-    
+
     [Header("Configuración de Cámara")]
     [SerializeField] private Transform _cameraPivot;
     public float mouseSensitivity = 6f;
@@ -34,70 +40,91 @@ public class Player : NetworkBehaviour
 
     public override void Spawned()
     {
-        _gameManager = FindFirstObjectByType<GameManager>();
-        
-        // 1. Buscamos todas las cámaras de Cinemachine dentro de NUESTRO Prefab
-        var vCams = GetComponentsInChildren<Unity.Cinemachine.CinemachineCamera>(true); 
+        ResolveGameManager();
 
-        if (Object.HasInputAuthority) // ¡SI SOY EL JUGADOR LOCAL!
+        var vCams = GetComponentsInChildren<CinemachineCamera>(true);
+
+        if (Object.HasInputAuthority)
         {
             Local = this;
-            // 2. Le decimos a Cinemachine que NUESTRAS cámaras nos sigan y miren a nuestro Pivot
             foreach (var cam in vCams)
             {
-                cam.enabled = true; // Nos aseguramos de que estén encendidas
+                cam.enabled = true;
                 if (_cameraPivot != null)
-                {
                     cam.Follow = _cameraPivot;
-                    //cam.LookAt = _cameraPivot;
-                }
             }
 
-            // Opcional: Ocultamos nuestro propio cuerpo local para que no tape la cámara en primera persona
             Transform meshTransform = transform.Find("Mesh");
             if (meshTransform != null) meshTransform.gameObject.SetActive(false);
-            
+
             Transform armorsTransform = transform.Find("Armors");
             if (armorsTransform != null) armorsTransform.gameObject.SetActive(false);
         }
-        else // ¡SI ES UN RIVAL EN MI PANTALLA!
+        else
         {
-            // 3. APAGAMOS por completo sus componentes de cámara para que no secuestren nuestra pantalla
             foreach (var cam in vCams)
-            {
                 cam.enabled = false;
-            }
 
             Transform cameraHolder = transform.Find("CameraHolder");
             if (cameraHolder != null) cameraHolder.gameObject.SetActive(false);
             if (_cameraPivot != null) _cameraPivot.gameObject.SetActive(false);
         }
+
+        if (Object.HasStateAuthority)
+            State = EPlayerState.Advancing;
+
+        if (_cc != null)
+            _cc.rotationSpeed = 0f;
+    }
+
+    private void ResolveGameManager()
+    {
+        if (_gameManager == null)
+            _gameManager = GameManager.Instance ?? FindFirstObjectByType<GameManager>();
+    }
+
+    public void ResetForMatch()
+    {
+        if (!Object.HasStateAuthority) return;
+
+        CurrentLevel = 1;
+        LevelQuestionIndex = -1;
+        LastAnsweredIndex = -1;
+        LevelCycleTimer = TickTimer.None;
+        State = EPlayerState.Advancing;
+        PlayerRank = 0;
+        RespuestasCorrectas = 0;
+        PuntajeObtenido = 0;
+        _lastDisplayedQuestionIndex = -1;
+
+        Transform spawn = LevelManager.Instance != null ? LevelManager.Instance.GetSpawnPoint(1) : null;
+        if (spawn != null)
+            _cc.Teleport(spawn.position, spawn.rotation);
     }
 
     public override void FixedUpdateNetwork()
     {
-        if (_gameManager == null) return; // Quitamos el "State == Finished" de aquí
+        ResolveGameManager();
 
-        // 1. Lógica de Transición Sincronizada (SOLO si no hemos terminado)
-        if (State != EPlayerState.Finished)
+        bool matchStarted = GameManager.IsMatchStartedSafe;
+
+        if (State != EPlayerState.Finished && matchStarted)
+            CheckLevelCycle();
+
+        if (!matchStarted)
         {
-            CheckGlobalCycle();
+            if (GetInput(out NetworkInputData lobbyData))
+            {
+                HandleMovement(lobbyData);
+                transform.Rotate(0, lobbyData.lookRotationDeltaX * mouseSensitivity, 0);
+                _pitch -= lobbyData.lookRotationDeltaY * mouseSensitivity;
+                _pitch = Mathf.Clamp(_pitch, -80f, 80f);
+            }
+            return;
         }
 
-        // 2. Input y Acciones
         if (GetInput(out NetworkInputData data))
         {
-            // -- ROTACIÓN DE CÁMARA --
-            if (State != EPlayerState.Responding)
-            {
-                transform.Rotate(0, data.lookRotationDeltaX * mouseSensitivity, 0);
-
-                _pitch -= data.lookRotationDeltaY * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -80f, 80f); 
-                
-            }
-
-            // -- MÁQUINA DE ESTADOS --
             switch (State)
             {
                 case EPlayerState.Responding:
@@ -110,134 +137,167 @@ public class Player : NetworkBehaviour
                     break;
 
                 case EPlayerState.Advancing:
-                case EPlayerState.Finished: // <--- AÑADIDO: Permitimos movimiento aunque haya terminado
+                case EPlayerState.Finished:
                     HandleMovement(data);
                     break;
+            }
+
+            if (State != EPlayerState.Responding)
+            {
+                transform.Rotate(0, data.lookRotationDeltaX * mouseSensitivity, 0);
+                _pitch -= data.lookRotationDeltaY * mouseSensitivity;
+                _pitch = Mathf.Clamp(_pitch, -80f, 80f);
             }
         }
     }
 
-    private void CheckGlobalCycle()
+    private void CheckLevelCycle()
     {
-        float remainingTime = _gameManager.GetRemainingResponseTime();
-        int currentQIndex = _gameManager.CurrentQuestionIndex;
+        if (!Object.HasStateAuthority) return;
+
+        if (LevelCycleTimer.ExpiredOrNotRunning(Runner))
+        {
+            LevelCycleTimer = TickTimer.CreateFromSeconds(Runner, CycleDuration);
+            LevelQuestionIndex++;
+        }
+
+        float remainingTime = GetRemainingResponseTime();
+        int currentQIndex = LevelQuestionIndex;
 
         if (currentQIndex < 0) return;
+
+        int maxQuestions = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
+        if (currentQIndex >= maxQuestions) return;
 
         if (remainingTime > 0 && LastAnsweredIndex != currentQIndex)
         {
             if (State != EPlayerState.Responding && State != EPlayerState.Stunned)
-            {
                 State = EPlayerState.Responding;
-            }
         }
-        
+
         if (remainingTime <= 0 && State == EPlayerState.Responding)
         {
             State = EPlayerState.Stunned;
-            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f); // 2 segundos de penalización
-            LastAnsweredIndex = currentQIndex; 
-            Debug.Log("SERVIDOR: Se acabó el tiempo. Jugador aturdido.");
+            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f);
+            LastAnsweredIndex = currentQIndex;
         }
+    }
+
+    public float GetRemainingResponseTime()
+    {
+        if (LevelCycleTimer.IsRunning)
+        {
+            float elapsed = CycleDuration - (LevelCycleTimer.RemainingTime(Runner) ?? 0);
+            return ResponseWindow - elapsed;
+        }
+        return 0;
     }
 
     private void HandleRespondingState(NetworkInputData data)
     {
-        if (data.SelectedAnswerIndex != -1)
+        if (data.SelectedAnswerIndex == -1) return;
+
+        Question currentQ = QuestionManager.Instance.GetQuestion(CurrentLevel, LevelQuestionIndex);
+        if (currentQ == null) return;
+
+        LastAnsweredIndex = LevelQuestionIndex;
+
+        if (data.SelectedAnswerIndex == currentQ.correctAnswerIndex)
         {
-            Question currentQ = QuestionManager.Instance.GetQuestion(_gameManager.CurrentQuestionIndex);
-
-            if (currentQ != null)
-            {
-                LastAnsweredIndex = _gameManager.CurrentQuestionIndex;
-
-                if (data.SelectedAnswerIndex == currentQ.correctAnswerIndex)
-                {
-                    Debug.Log("SERVIDOR: Respuesta Correcta. Avanzando.");
-                    State = EPlayerState.Advancing;
-                    RespuestasCorrectas++;
-                }
-                else
-                {
-                    Debug.Log("SERVIDOR: Respuesta Incorrecta. Aturdido.");
-                    State = EPlayerState.Stunned;
-                    _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f);
-                }
-            }
+            State = EPlayerState.Advancing;
+            RespuestasCorrectas++;
+            PuntajeObtenido += currentQ.puntaje;
+        }
+        else
+        {
+            State = EPlayerState.Stunned;
+            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f);
         }
     }
 
     private void HandleMovement(NetworkInputData data)
     {
-        // 1. Iniciamos la dirección en cero (por si no estamos tocando nada)
         Vector3 moveDir = Vector3.zero;
 
         if (data.Direction.sqrMagnitude > 0)
         {
-            // Mantenemos tu lógica para saber hacia dónde mira la cámara
             moveDir = (transform.forward * data.Direction.z) + (transform.right * data.Direction.x);
             moveDir.Normalize();
         }
 
-        // 2. Elegimos la velocidad basada en si apretamos Shift en la red
         float currentSpeed = data.Buttons.IsSet(NetworkInputData.SprintButton) ? _sprintSpeed : _forwardSpeed;
-
-        // 3. Le asignamos la nueva velocidad máxima al controlador
-        _cc.maxSpeed = currentSpeed; 
-        // Nota: Si Unity te da error por "maxSpeed", escríbelo con M mayúscula: _cc.MaxSpeed = currentSpeed;
-
-        // 4. Movemos al personaje pasándole SOLO la dirección.
-        // Fusion se encarga de aplicar el DeltaTime y la velocidad máxima internamente.
+        _cc.maxSpeed = currentSpeed;
         _cc.Move(moveDir);
+    }
+
+    public void CompleteLevel(int level)
+    {
+        if (!Object.HasStateAuthority) return;
+        if (State == EPlayerState.Finished) return;
+        if (CurrentLevel != level) return;
+
+        if (level < 3)
+        {
+            int nextLevel = level + 1;
+            Transform spawn = LevelManager.Instance != null ? LevelManager.Instance.GetSpawnPoint(nextLevel) : null;
+            if (spawn != null)
+                _cc.Teleport(spawn.position, spawn.rotation);
+
+            CurrentLevel = nextLevel;
+            LevelQuestionIndex = -1;
+            LastAnsweredIndex = -1;
+            _lastDisplayedQuestionIndex = -1;
+            LevelCycleTimer = TickTimer.None;
+            State = EPlayerState.Advancing;
+            return;
+        }
+
+        int rank = GameManager.Instance.RegisterPlayerFinish();
+        FinishRace(rank);
     }
 
     public override void Render()
     {
-        // --- ROTACIÓN VISUAL DE LA CABEZA (Aplica para todos los jugadores en la escena) ---
         if (_cameraPivot != null)
-        {
-            // Usamos la variable [Networked] '_pitch' para rotar el pivot suavemente en cada frame
             _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
-        }
 
-        // 🚨 PROTECCIÓN DE UI: Solo el dueño de este teclado puede manipular la interfaz de su pantalla
         if (Object.HasInputAuthority)
         {
-            // --- CONTROL DE UI POST-CARRERA ---
+            ResolveGameManager();
+            bool matchStarted = GameManager.IsMatchStartedSafe;
+
+            if (matchStarted && State != EPlayerState.Finished)
+            {
+                if (TriviaUI.Instance != null)
+                {
+                    TriviaUI.Instance.UpdateTimer(GetRemainingResponseTime());
+                    TriviaUI.Instance.UpdateLevelIndicator(CurrentLevel);
+                }
+            }
+
             if (State == EPlayerState.Finished)
             {
-                TriviaUI.Instance.ShowWaiting();
+                TriviaUI.Instance?.ShowWaiting();
             }
-            
             else if (State == EPlayerState.Responding)
             {
-                int currentIdx = _gameManager.CurrentQuestionIndex;
+                int currentIdx = LevelQuestionIndex;
                 if (_lastDisplayedQuestionIndex != currentIdx)
                 {
-                    // Intentamos pedir la pregunta
-                    var q = QuestionManager.Instance.GetQuestion(currentIdx);
-                    
-                    // LA CLAVE: Solo marcamos la pregunta como "mostrada" 
-                    // si realmente logramos sacarla del QuestionManager.
-                    if (q != null) 
+                    var q = QuestionManager.Instance?.GetQuestion(CurrentLevel, currentIdx);
+                    if (q != null)
                     {
-                        TriviaUI.Instance.ShowQuestion(q);
-                        _lastDisplayedQuestionIndex = currentIdx; // <--- SE MUEVE AQUÍ ADENTRO
+                        TriviaUI.Instance?.ShowQuestion(q);
+                        _lastDisplayedQuestionIndex = currentIdx;
                     }
-                    // Si 'q' es null, el código ignorará esto y volverá a 
-                    // intentarlo en la siguiente fracción de segundo.
                 }
             }
-            else
+            else if (State != EPlayerState.Finished)
             {
-                if (State != EPlayerState.Finished) 
-                {
-                    TriviaUI.Instance.Hide();
-                }
+                TriviaUI.Instance?.Hide();
             }
         }
 
-        // --- ANIMACIONES (Todos deben procesarlas para verse en red) ---
         if (_animator != null)
         {
             _animator.SetBool("isStunned", State == EPlayerState.Stunned);
@@ -245,34 +305,26 @@ public class Player : NetworkBehaviour
             _animator.SetFloat("Speed", speed);
         }
     }
-    
+
     public void FinishRace(int rank)
     {
         State = EPlayerState.Finished;
         PlayerRank = rank;
-        Debug.Log($"¡Llegaste en la posición: {rank}!");
-        
-        RPC_NotificarLlegada(RespuestasCorrectas);
-        RPC_UpdatePodiumGlobal();
+
+        RPC_NotificarLlegada(PuntajeObtenido);
+        RPC_ShowPodiumToAll();
     }
-    
+
     [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
-    public void RPC_NotificarLlegada(int misRespuestasCorrectas)
+    public void RPC_NotificarLlegada(int puntajeObtenido)
     {
-        // Esto solo se ejecuta en la pantalla local del jugador que cruzó
-        Debug.Log($"¡Acabas de cruzar la meta! Tienes {misRespuestasCorrectas} correctas.");
-        if (TriviaUI.Instance != null)
-        {
-            TriviaUI.Instance.RegistrarFinDeCarreraLocal(misRespuestasCorrectas, 10);
-        }
+        int puntajeMaximo = QuestionManager.Instance != null ? QuestionManager.Instance.GetMaxPossibleScore() : 0;
+        TriviaUI.Instance?.RegistrarFinDeCarreraLocal(puntajeObtenido, puntajeMaximo);
     }
+
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    public void RPC_UpdatePodiumGlobal()
+    public void RPC_ShowPodiumToAll()
     {
-        // Esto se ejecuta en la pantalla de TODOS los jugadores al mismo tiempo
-        if (TriviaUI.Instance != null)
-        {
-            TriviaUI.Instance.UpdatePodiumLive();
-        }
+        TriviaUI.Instance?.ShowPodiumForAll();
     }
 }

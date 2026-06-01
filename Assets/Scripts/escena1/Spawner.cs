@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using TMPro;
 
@@ -33,6 +32,133 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
     private NetworkRunner _runner;
     private bool _mouseButton0;
+    private bool _callbacksRegistered;
+    private bool _inEscena1Session;
+
+    private static bool IsAltHeld()
+    {
+        var keyboard = Keyboard.current;
+        return keyboard != null &&
+               (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed);
+    }
+
+    private bool AllowMouseLook()
+    {
+        if (!_inEscena1Session) return false;
+        if (IsAltHeld()) return false;
+        if (TriviaUI.Instance != null && TriviaUI.Instance.BlocksMouseLook())
+            return false;
+        return true;
+    }
+
+    private void ApplyCursorState()
+    {
+        if (!Application.isFocused)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        if (!_inEscena1Session)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        if (IsAltHeld())
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    private void EnterEscena1Session()
+    {
+        _inEscena1Session = true;
+
+        if (_menuCanvas != null) _menuCanvas.SetActive(false);
+        if (_menuCamera != null) _menuCamera.SetActive(false);
+    }
+
+    private void ReturnToMenuScene()
+    {
+        _inEscena1Session = false;
+        _spawnedCharacters.Clear();
+
+        if (_menuCanvas != null) _menuCanvas.SetActive(true);
+        if (_menuCamera != null) _menuCamera.SetActive(true);
+        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    private void LateUpdate()
+    {
+        ApplyCursorState();
+    }
+
+    private void RegisterRunnerCallbacks(NetworkRunner runner)
+    {
+        if (runner == null || _callbacksRegistered) return;
+        runner.AddCallbacks(this);
+        _callbacksRegistered = true;
+    }
+
+    private bool TryGetSpawnTransform(int playerIndex, out Vector3 position, out Quaternion rotation)
+    {
+        if (LevelManager.Instance != null)
+        {
+            Transform levelSpawn = LevelManager.Instance.GetSpawnPoint(1);
+            if (levelSpawn != null)
+            {
+                position = levelSpawn.position;
+                rotation = levelSpawn.rotation;
+                return true;
+            }
+        }
+
+        if (_spawnPoints != null && _spawnPoints.Length > 0)
+        {
+            int index = playerIndex % _spawnPoints.Length;
+            Transform fallback = _spawnPoints[index];
+            if (fallback != null)
+            {
+                position = fallback.position;
+                rotation = fallback.rotation;
+                return true;
+            }
+        }
+
+        position = new Vector3((playerIndex % 8) * 3f, 0.001f, 0f);
+        rotation = Quaternion.identity;
+        return false;
+    }
+
+    private void SpawnOrRepositionPlayer(NetworkRunner runner, PlayerRef player)
+    {
+        TryGetSpawnTransform(player.RawEncoded, out Vector3 spawnPosition, out Quaternion spawnRotation);
+
+        if (_spawnedCharacters.TryGetValue(player, out NetworkObject existing) && existing != null)
+        {
+            if (existing.TryGetComponent<NetworkCharacterController>(out var cc))
+                cc.Teleport(spawnPosition, spawnRotation);
+            return;
+        }
+
+        NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, spawnRotation, player);
+        _spawnedCharacters[player] = networkPlayerObject;
+
+        if (QuestionManager.Instance != null && QuestionManager.Instance.IsReady)
+            QuestionManager.Instance.SincronizarConNuevoJugador(player);
+    }
 
     private void OcultarTodosLosPaneles() {
         _panelPrincipal.SetActive(false);
@@ -58,6 +184,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         {
             _runner = gameObject.AddComponent<NetworkRunner>();
             _runner.ProvideInput = true;
+            RegisterRunnerCallbacks(_runner);
         }
 
         Debug.Log("Conectando al Lobby de Fusion para buscar salas...");
@@ -68,17 +195,17 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     public void UI_BotonVolver()
     {
         OcultarTodosLosPaneles();
-        
-        // Volvemos a mostrar el menú principal
+
         if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
 
-        // Si estábamos en el buscador de salas, apagamos el Runner para no gastar 
-        // recursos en segundo plano escuchando a la red.
         if (_runner != null)
         {
             _runner.Shutdown();
             _runner = null;
+            _callbacksRegistered = false;
         }
+
+        ReturnToMenuScene();
     }
 
     public async void UI_BotonRefrescarSalas()
@@ -102,9 +229,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     public void UI_VolverAlMenu() {
-        if (_runner != null) _runner.Shutdown(); // Detener búsqueda si volvemos
+        if (_runner != null) _runner.Shutdown();
         OcultarTodosLosPaneles();
-        _panelPrincipal.SetActive(true);
+        ReturnToMenuScene();
     }
 
     public void UI_StartHost()
@@ -120,6 +247,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private void Start()
     {
+        _inEscena1Session = false;
         OcultarTodosLosPaneles();
         
         if (_panelPrincipal != null)
@@ -140,6 +268,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         {
             _runner = gameObject.AddComponent<NetworkRunner>();
             _runner.ProvideInput = true;
+            RegisterRunnerCallbacks(_runner);
         }
 
         DontDestroyOnLoad(gameObject);
@@ -165,38 +294,15 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             // Limpieza si falla
             Destroy(_runner);
             _runner = null;
+            _callbacksRegistered = false;
         }
     }
 
     void INetworkRunnerCallbacks.OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
         if (runner.IsServer)
-        {
-            // 1. Calculamos dónde aparecerá el jugador basado en los puntos que crees en Unity
-            Vector3 spawnPosition = Vector3.zero;
-            Quaternion spawnRotation = Quaternion.identity;
+            SpawnOrRepositionPlayer(runner, player);
 
-            if (_spawnPoints != null && _spawnPoints.Length > 0)
-            {
-                int index = player.RawEncoded % _spawnPoints.Length;
-                spawnPosition = _spawnPoints[index].position;
-                spawnRotation = _spawnPoints[index].rotation;
-            }
-            else
-            {
-                // Respaldo por si olvidas asignar los puntos en el Inspector
-                spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 0.001f, 0);
-            }
-
-            // 2. Hacemos spawn
-            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, spawnRotation, player);
-            _spawnedCharacters.Add(player, networkPlayerObject);
-            
-            if (QuestionManager.Instance != null && QuestionManager.Instance.IsReady)
-            {
-                QuestionManager.Instance.SincronizarConNuevoJugador(player);
-            }
-        }
         if (TriviaUI.Instance != null) TriviaUI.Instance.UpdateLobbyUI(runner);
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
@@ -237,27 +343,13 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             _mouseButton0 = false;
             
             data.Buttons.Set(NetworkInputData.SprintButton, keyboard.leftShiftKey.isPressed);
-            
-            // Lógica del botón ALT para el cursor
-            if (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-                data.lookRotationDeltaX = 0f;
-                data.lookRotationDeltaY = 0f;
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+        }
 
-                if (mouse != null)
-                {
-                    Vector2 mouseDelta = mouse.delta.ReadValue();
-                    data.lookRotationDeltaX = mouseDelta.x * 0.1f;
-                    data.lookRotationDeltaY = mouseDelta.y * 0.1f;
-                }
-            }
+        if (AllowMouseLook() && mouse != null)
+        {
+            Vector2 mouseDelta = mouse.delta.ReadValue();
+            data.lookRotationDeltaX = mouseDelta.x * 0.1f;
+            data.lookRotationDeltaY = mouseDelta.y * 0.1f;
         }
 
         // 3. Lógica de Trivia: Solo sobreescribimos el -1 si el jugador realmente hizo clic
@@ -271,7 +363,12 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
-    void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
+    void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
+    {
+        _runner = null;
+        _callbacksRegistered = false;
+        ReturnToMenuScene();
+    }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
     void INetworkRunnerCallbacks.OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
@@ -305,13 +402,18 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken) { }
     void INetworkRunnerCallbacks.OnSceneLoadDone(NetworkRunner runner) {
         Debug.Log("Entramos a la sesión. Mostrando Lobby.");
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true; 
 
+        EnterEscena1Session();
         OcultarTodosLosPaneles();
 
-        if (_menuCanvas != null) _menuCanvas.SetActive(false);
-        if (_menuCamera != null) _menuCamera.SetActive(false);
+        if (runner.IsServer)
+        {
+            foreach (var player in runner.ActivePlayers)
+                SpawnOrRepositionPlayer(runner, player);
+        }
+
+        if (TriviaUI.Instance != null)
+            TriviaUI.Instance.ShowLobby(runner);
     }
     void INetworkRunnerCallbacks.OnSceneLoadStart(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

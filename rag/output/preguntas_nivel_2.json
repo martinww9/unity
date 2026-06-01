@@ -1,0 +1,83 @@
+{
+    "nivel": 2,
+    "questions": [
+        {
+            "id": "N2_1_Fácil",
+            "question": "¿Cuál es el tiempo de complejidad de la función Big O en relación con el nómero de elementos en una lista?",
+            "options": [
+                "O(n)",
+                "O(n^2)",
+                "O(log n)",
+                "O(1)"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "N2_2_Media",
+            "question": "¿En el algoritmo de Quicksort, si se divide la lista en sublistas de tamaño igual, el tiempo de complejidad temporal es determinado por la fórma Big-O. Si una lista tiene n elementos, la complejidad temporal del algoritmo de Quicksort es O(n log n), independientemente del orden en que se divide la lista. Sin embargo, si se divide la lista en sublistas desigualmente grandes, el tiempo de complejidad temporal puede ser diferente. Ñ cual es el tiempo de complejidad temporal promedio del algoritmo de Quicksort cuando se divide la lista en sublistas de tamaño igual?",
+            "options": [
+                "Opción A (Exacta)",
+                "Opción B",
+                "Opción C",
+                "Opción D"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_3_Media",
+            "question": "¿Cuál es el objetivo principal de la llamada RB-INSERT-FIXUP en el algoritmo de RB-INSERT?",
+            "options": [
+                "Restablecer la propiedad de red",
+                "Mantener la estructura del árbol",
+                "Verificar la consistencia de los colores",
+                "Amarillar un nodo adyacente"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_4_Media",
+            "question": "¿Cuál es la complejidad espacial de la función PARTITION del algoritmo QuickSort?",
+            "options": [
+                "Opción A (Exacta): O(log n)",
+                "OpiÇón B: O(n)",
+                "Opción C: O(n log n)",
+                "Opción D: O(1)"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_5_Media",
+            "question": "¿En un árbol binario rojo-negro, çuel es el color de la raíz de una subárbol que no ha sido insertado?",
+            "options": [
+                "Opción A (Exacta)",
+                "Opción B",
+                "Opción C",
+                "Opción D"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_6_Difícil",
+            "question": "¿En un algoritmo de particñon, Ül objetivo principal del uso de una función de particiñon lineal es:?",
+            "options": [
+                "Opción A (Exacta): Dividir la lista en dos sublistas de elementos iguales.",
+                "Opción B: Ordenar los elementos de la lista de manera ascendente.",
+                "Opción C: Eliminar elementos duplicados de la lista.",
+                "Opción D: Reordenar los elementos de la lista de manera descendente."
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        }
+    ]
+}

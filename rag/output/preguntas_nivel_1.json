@@ -1,0 +1,84 @@
+{
+    "nivel": 1,
+    "questions": [
+        {
+            "id": "N1_1_Fácil",
+            "question": "¿Cuál es el tipo de dato abstracto utilizado en la definición del conjunto de instancias para cualquier problema de decisión?",
+            "options": [
+                "A. Conjunto",
+                "B. Número entero",
+                "C. Conjunto concreto",
+                "D. Tipo de dato abstracto"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "N1_2_Fácil",
+            "question": "¿En una lista enlazada con nodo puntero, si se busca un elemento específico y el ordenador no encuentra el elemento en la primera posición, cuántas posiciones tiene que revisar para estar seguro de no haber encontrado el elemento?",
+            "options": [
+                "Opción A (1)",
+                "Opción B (n-1)",
+                "Opción C (n+1)",
+                "Opción D (2n)"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "N1_3_Fácil",
+            "question": "¿Cuál es el beneficio principal de utilizar una lista doblemente enlazada en lugar de una lista simple?",
+            "options": [
+                "Opción A (Exacta): permite insertar y eliminar elementos en cualquier posición del arreglo.",
+                "Opción B: reduce la cantidad de memoria necesaria para almacenar los datos.",
+                "Opción C: mejora el rendimiento de busquedas lineales.",
+                "Opción D: aumenta la complejidad computacional al realizar operaciones de inserción y eliminación."
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Fácil",
+            "puntaje": 10
+        },
+        {
+            "id": "N1_4_Media",
+            "question": "¿Cuál es el límite superior de la cantidad de saturaciones en una pila de push, según el teorema 26.23?",
+            "options": [
+                "Opción A: O(jVj)",
+                "Opción B: O(VjEj)",
+                "Opción C: O(VEj)",
+                "Opción D: O(V2E)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N1_5_Media",
+            "question": "¿Cuál es el algoritmo que utiliza la función Euclidiana para encontrar el máximo común divisor de dos números?",
+            "options": [
+                "Algoritmo de División Recursivo",
+                "Algoritmo de División Iterativo",
+                "Algoritmo de Euclidiano",
+                "Algoritmo de Bézout"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N1_6_Media",
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20,
+            "question": "¿En un árbol de red-black, si la altura del árbol es h, çual es el límite superior para h en función de n?",
+            "options": [
+                "h <= n/2",
+                "h <= lg(n) + 1",
+                "h <= 2*lg(n)",
+                "h <= 3*lg(n)"
+            ],
+            "answer": "h <= 2*lg(n)"
+        }
+    ]
+}

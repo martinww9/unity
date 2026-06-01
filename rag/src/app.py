@@ -1,0 +1,123 @@
+# app.py
+import threading
+from flask import Flask, jsonify, request
+from jsonschema import ValidationError
+from . import rag_pipeline
+
+app = Flask(__name__)
+
+state_lock = threading.Lock()
+
+ia_state = {
+    "status": "indexing",
+    "levels": {
+        1: {"status": "idle", "questions": []},
+        2: {"status": "idle", "questions": []},
+        3: {"status": "idle", "questions": []},
+    },
+}
+
+
+def inicializar_sistema_bg():
+    global ia_state
+    try:
+        rag_pipeline.cargar_o_crear_index()
+        print("[4/4] Índice cargado. Sistema IA listo.")
+        with state_lock:
+            ia_state["status"] = "idle"
+    except Exception as e:
+        print(f"Error crítico al inicializar el índice: {e}")
+        with state_lock:
+            ia_state["status"] = "error"
+
+
+def _status_payload():
+    return {
+        "status": ia_state["status"],
+        "levels": {
+            str(nivel): {
+                "status": ia_state["levels"][nivel]["status"],
+                "count": len(ia_state["levels"][nivel]["questions"]),
+            }
+            for nivel in [1, 2, 3]
+        },
+    }
+
+
+def _questions_for_level(nivel):
+    if nivel not in [1, 2, 3]:
+        return None
+    nivel_state = ia_state["levels"][nivel]
+    return {
+        "nivel": nivel,
+        "status": nivel_state["status"],
+        "questions": list(nivel_state["questions"]),
+    }
+
+
+@app.route("/api/questions/generate", methods=["GET", "POST"])
+def run_generate_questions():
+    with state_lock:
+        estado_actual = ia_state["status"]
+
+    if estado_actual == "indexing":
+        return jsonify({"status": "indexing", "message": "Procesando archivos..."})
+    if estado_actual == "generating":
+        return jsonify({"status": "generating", "message": "Ya hay una generación en curso..."})
+
+    with state_lock:
+        ia_state["status"] = "generating"
+        for nivel in [1, 2, 3]:
+            ia_state["levels"][nivel]["status"] = "generating"
+            ia_state["levels"][nivel]["questions"] = []
+
+    thread = threading.Thread(
+        target=rag_pipeline.ejecutar_pipeline_todos_los_niveles,
+        args=(ia_state, state_lock),
+    )
+    thread.start()
+    return jsonify({"status": "started", "message": "Generando los 3 sets de preguntas..."})
+
+
+@app.route("/api/questions/status", methods=["GET"])
+@app.route("/api/get-all-levels-status", methods=["GET"])
+def run_questions_status():
+    with state_lock:
+        return jsonify(_status_payload())
+
+
+@app.route("/api/questions/<int:nivel>", methods=["GET"])
+@app.route("/api/questions/get/<int:nivel>", methods=["GET"])
+def run_get_questions_nivel(nivel):
+    with state_lock:
+        payload = _questions_for_level(nivel)
+    if payload is None:
+        return jsonify({"error": "Nivel inválido. Usa 1, 2 o 3."}), 400
+    return jsonify(payload)
+
+
+@app.route("/api/feedback", methods=["POST"])
+@app.route("/api/generate-feedback", methods=["POST"])
+def run_generate_feedback():
+    datos = request.get_json() or {}
+    puntaje = datos.get("score", 0)
+    total = datos.get("total", 30)
+    nivel = datos.get("nivel", 3)
+
+    try:
+        resultado = rag_pipeline.ejecutar_pipeline_feedback(puntaje, total, nivel)
+        return jsonify(resultado)
+    except ValidationError as e:
+        return jsonify({"error": f"Feedback con formato inválido: {e.message}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    rag_pipeline.configurar_modelos()
+
+    hilo_inicio = threading.Thread(target=inicializar_sistema_bg)
+    hilo_inicio.start()
+
+    print("Servidor Flask activo...")
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
