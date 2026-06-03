@@ -112,7 +112,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def configurar_modelos():
     print("[1/4] Configurando modelo LLM...")
     llm = Ollama(
-        model="a-bot",
+        model="llama3.2:latest",
         request_timeout=600.0,
         context_window=5120,
         additional_kwargs={"num_ctx": 5120, "num_predict": 1024}

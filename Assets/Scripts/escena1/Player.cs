@@ -16,6 +16,8 @@ public class Player : NetworkBehaviour
     [Networked] public int RespuestasCorrectas { get; set; }
     [Networked] public int PuntajeObtenido { get; set; }
     [Networked] private float _pitch { get; set; }
+    [Networked] private bool NetAnimWalking { get; set; }
+    [Networked] private bool NetAnimRunning { get; set; }
 
     private const float CycleDuration = 13f;
     private const float ResponseWindow = 10f;
@@ -36,11 +38,14 @@ public class Player : NetworkBehaviour
     private void Awake()
     {
         _cc = GetComponent<NetworkCharacterController>();
+        if (_animator == null)
+            _animator = GetComponent<Animator>();
     }
 
     public override void Spawned()
     {
         ResolveGameManager();
+        HideLegacyBlinkRig();
 
         var vCams = GetComponentsInChildren<CinemachineCamera>(true);
 
@@ -53,12 +58,6 @@ public class Player : NetworkBehaviour
                 if (_cameraPivot != null)
                     cam.Follow = _cameraPivot;
             }
-
-            Transform meshTransform = transform.Find("Mesh");
-            if (meshTransform != null) meshTransform.gameObject.SetActive(false);
-
-            Transform armorsTransform = transform.Find("Armors");
-            if (armorsTransform != null) armorsTransform.gameObject.SetActive(false);
         }
         else
         {
@@ -75,6 +74,20 @@ public class Player : NetworkBehaviour
 
         if (_cc != null)
             _cc.rotationSpeed = 0f;
+    }
+
+    private void HideLegacyBlinkRig()
+    {
+        foreach (var partName in new[] { "Armature", "Mesh", "Armors" })
+        {
+            Transform part = transform.Find(partName);
+            if (part != null)
+                part.gameObject.SetActive(false);
+        }
+
+        var rootMeshRenderer = GetComponent<MeshRenderer>();
+        if (rootMeshRenderer != null)
+            rootMeshRenderer.enabled = false;
     }
 
     private void ResolveGameManager()
@@ -128,11 +141,13 @@ public class Player : NetworkBehaviour
             switch (State)
             {
                 case EPlayerState.Responding:
+                    SetLocomotionAnim(false, false);
                     HandleRespondingState(data);
                     break;
 
                 case EPlayerState.Stunned:
                     _cc.Velocity = Vector3.zero;
+                    SetLocomotionAnim(false, false);
                     if (_stunTimer.Expired(Runner)) State = EPlayerState.Advancing;
                     break;
 
@@ -228,6 +243,18 @@ public class Player : NetworkBehaviour
         float currentSpeed = data.Buttons.IsSet(NetworkInputData.SprintButton) ? _sprintSpeed : _forwardSpeed;
         _cc.maxSpeed = currentSpeed;
         _cc.Move(moveDir);
+
+        bool isMoving = data.Direction.sqrMagnitude > 0;
+        bool isSprinting = isMoving && data.Buttons.IsSet(NetworkInputData.SprintButton);
+        SetLocomotionAnim(isMoving, isSprinting);
+    }
+
+    private void SetLocomotionAnim(bool walking, bool running)
+    {
+        if (!Object.HasStateAuthority) return;
+
+        NetAnimWalking = walking;
+        NetAnimRunning = running;
     }
 
     public void CompleteLevel(int level)
@@ -300,9 +327,8 @@ public class Player : NetworkBehaviour
 
         if (_animator != null)
         {
-            _animator.SetBool("isStunned", State == EPlayerState.Stunned);
-            float speed = (State == EPlayerState.Advancing || State == EPlayerState.Finished) ? 1f : 0f;
-            _animator.SetFloat("Speed", speed);
+            _animator.SetBool("isWalking", NetAnimWalking);
+            _animator.SetBool("isRunning", NetAnimRunning);
         }
     }
 

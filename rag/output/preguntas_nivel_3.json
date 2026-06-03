@@ -3,81 +3,16 @@
     "questions": [
         {
             "id": "N3_1_Media",
-            "question": "¿Cuál es el tiempo de ejecución del algoritmo para convertir una lista adyacencia de un grafo en su matriz adyacentes cuando se requiere eliminar múltiples aristas y ciclos?",
+            "question": "¿Pregunta técnica concreta enfocada en el concepto?",
             "options": [
-                "Opción A (O(V^2))",
-                "Opción B (O(E))",
-                "Opción C (O(EV))",
-                "Opción D (O(EV))"
+                "Opción A: Mayor eficiencia en la búsqueda de elementos",
+                "Opción B: Reducción del espacio de memoria requerido",
+                "Opción C: Mejora en la velocidad de inserción y eliminación de elementos",
+                "Opción D: Nullificación de posibles errores de memorización"
             ],
             "correctAnswerIndex": 0,
             "dificultad": "Media",
             "puntaje": 20
-        },
-        {
-            "id": "N3_2_Difícil",
-            "question": "¿En un árbol con recorrido profundidad DFS, ¿cuál es el tiempo de búsqueda promedio para encontrar la raíz de un nodo dado si el número de nodos en el árbol es n?",
-            "options": [
-                "Opción A (n)",
-                "Opción B (log n)",
-                "Opción C (sqrt(n))",
-                "Opción D (O(n))"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_3_Difícil",
-            "question": "¿Cuál es el tiempo complejo de ejecución del algoritmo Dijkstra?",
-            "options": [
-                "O(n log n)",
-                "O(n^2)",
-                "O(n log n) + O(n^2)",
-                "O(n^3)"
-            ],
-            "correctAnswerIndex": 0,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_4_Difícil",
-            "question": "¿En una matriz adyacente, si se elimina un elemento de la primera fila y el segundo elemento de la primera columna, ¿cuál es el efecto en el determinante de la matriz?",
-            "options": [
-                "El determinante aumenta.",
-                "El determinante disminuye.",
-                "El determinante permanece igual.",
-                "No se puede determinar con precisión."
-            ],
-            "correctAnswerIndex": 2,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_5_Difícil",
-            "question": "¿En un B-Tree de altura h, determina la cantidad máxima de hojas que puede tener en su raíz.?",
-            "options": [
-                "0",
-                "1",
-                "2",
-                "3"
-            ],
-            "correctAnswerIndex": 0,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_6_Difícil",
-            "question": "¿En un B-Tree, ¿cuál es el efecto de eliminar un nodo que contiene datos en su lista de hijos?",
-            "options": [
-                "Opción A: La lista de hijos se vuelve más rápida",
-                "Opción B: El ordenamiento de los datos cambia",
-                "Opción C: Se crea un vació en la estructura del árbol",
-                "Opción D: No afecta el funcionamiento del B-Tree"
-            ],
-            "correctAnswerIndex": 2,
-            "dificultad": "Difícil",
-            "puntaje": 30
         }
     ]
 }
