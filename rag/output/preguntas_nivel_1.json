@@ -3,82 +3,42 @@
     "questions": [
         {
             "id": "N1_1_Fácil",
-            "question": "¿Cuál es el tipo de dato abstracto utilizado en la definición del conjunto de instancias para cualquier problema de decisión?",
+            "question": "¿Cuál es el campo que se utiliza para indicar la posición de memoria en la que se ha almacenado un nodo en una lista enlazada?",
             "options": [
-                "A. Conjunto",
-                "B. Número entero",
-                "C. Conjunto concreto",
-                "D. Tipo de dato abstracto"
+                "INFORMACION",
+                "PUNTERO IZQUIERDO",
+                "PUNTERO DCHIO",
+                "NÚLLO"
             ],
-            "correctAnswerIndex": 3,
+            "correctAnswerIndex": 2,
             "dificultad": "Fácil",
             "puntaje": 10
         },
         {
             "id": "N1_2_Fácil",
-            "question": "¿En una lista enlazada con nodo puntero, si se busca un elemento específico y el ordenador no encuentra el elemento en la primera posición, cuántas posiciones tiene que revisar para estar seguro de no haber encontrado el elemento?",
+            "question": "¿Qué sucede con la lista enlazada después de ejecutar el algoritmo de eliminación del elemento siguiente al apuntado por P, utilizando un puntero auxiliar Q?",
             "options": [
-                "Opción A (1)",
-                "Opción B (n-1)",
-                "Opción C (n+1)",
-                "Opción D (2n)"
+                "La lista se convierte en una lista ordenada.",
+                "El nodo que se elimina queda fuera de la lista, pero los nodos libres se reutilizan.",
+                "La lista se vuelve vacía y todos los nodos se eliminan.",
+                "Los nodos que preceden al elemento a eliminar se unen entre sí."
             ],
-            "correctAnswerIndex": 0,
+            "correctAnswerIndex": 2,
             "dificultad": "Fácil",
             "puntaje": 10
         },
         {
             "id": "N1_3_Fácil",
-            "question": "¿Cuál es el beneficio principal de utilizar una lista doblemente enlazada en lugar de una lista simple?",
+            "question": "En una lista doblemente enlazada, si se desea insertar un nuevo elemento entre el elemento que apunta el puntero P y el siguiente al mismo, que instrucción debería ejecutarse?",
             "options": [
-                "Opción A (Exacta): permite insertar y eliminar elementos en cualquier posición del arreglo.",
-                "Opción B: reduce la cantidad de memoria necesaria para almacenar los datos.",
-                "Opción C: mejora el rendimiento de busquedas lineales.",
-                "Opción D: aumenta la complejidad computacional al realizar operaciones de inserción y eliminación."
+                "A) Q SIG(P), SIG(P) NUEVO, SIG(NUEVO) Q",
+                "B) SIG(NUEVO) SIG(P), SIG(P) NUEVO",
+                "C) P NUEVO, SIG(P) NUEVO, SIG(NUEVO)",
+                "D) SIG(P) NUEVO, P NUEVO, SIG(NUEVO)"
             ],
             "correctAnswerIndex": 0,
             "dificultad": "Fácil",
             "puntaje": 10
-        },
-        {
-            "id": "N1_4_Media",
-            "question": "¿Cuál es el límite superior de la cantidad de saturaciones en una pila de push, según el teorema 26.23?",
-            "options": [
-                "Opción A: O(jVj)",
-                "Opción B: O(VjEj)",
-                "Opción C: O(VEj)",
-                "Opción D: O(V2E)"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Media",
-            "puntaje": 20
-        },
-        {
-            "id": "N1_5_Media",
-            "question": "¿Cuál es el algoritmo que utiliza la función Euclidiana para encontrar el máximo común divisor de dos números?",
-            "options": [
-                "Algoritmo de División Recursivo",
-                "Algoritmo de División Iterativo",
-                "Algoritmo de Euclidiano",
-                "Algoritmo de Bézout"
-            ],
-            "correctAnswerIndex": 2,
-            "dificultad": "Media",
-            "puntaje": 20
-        },
-        {
-            "id": "N1_6_Media",
-            "correctAnswerIndex": 2,
-            "dificultad": "Media",
-            "puntaje": 20,
-            "question": "¿En un árbol de red-black, si la altura del árbol es h, çual es el límite superior para h en función de n?",
-            "options": [
-                "h <= n/2",
-                "h <= lg(n) + 1",
-                "h <= 2*lg(n)",
-                "h <= 3*lg(n)"
-            ],
-            "answer": "h <= 2*lg(n)"
         }
     ]
 }
