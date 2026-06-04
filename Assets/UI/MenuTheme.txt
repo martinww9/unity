@@ -1,0 +1,9 @@
+Menu UI palette (RGB 0-1):
+- bg_primary: #1a2332
+- panel_surface: #243447
+- accent: #3d8bfd
+- text_primary: #f0f4f8
+- text_secondary: #a8b8cc
+- input_bg: #2d3e52
+
+Re-apply in Editor: Tools > Menu UI > Apply Redesign

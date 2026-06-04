@@ -4,17 +4,29 @@ using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 
 public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 {
+    private const int MenuCanvasSortOrder = 100;
+
+    private static readonly string[] Escena1UiCanvasNames =
+    {
+        "CanvasLobby",
+        "CanvasTimer",
+        "CanvasPreguntas",
+        "CanvasPodio",
+        "CanvasFinCarrera"
+    };
+
     [SerializeField] private NetworkPrefabRef _playerPrefab;
-    [SerializeField] private GameObject _menuCanvas;
     [SerializeField] private GameObject _menuCamera;
-    
-    [Header("Paneles de Navegación")]   
-    [SerializeField] private GameObject _panelPrincipal;
+
+    [Header("Menú UI")]
+    [SerializeField] private GameObject _canvasMenu;
+    [SerializeField] private GameObject _panelInicio;
     [SerializeField] private GameObject _panelCrearSala;
     [SerializeField] private GameObject _panelBrowser;
 
@@ -83,7 +95,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     {
         _inEscena1Session = true;
 
-        if (_menuCanvas != null) _menuCanvas.SetActive(false);
+        SetMenuCanvasPriority(false);
+        if (_canvasMenu != null) _canvasMenu.SetActive(false);
         if (_menuCamera != null) _menuCamera.SetActive(false);
     }
 
@@ -92,12 +105,80 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         _inEscena1Session = false;
         _spawnedCharacters.Clear();
 
-        if (_menuCanvas != null) _menuCanvas.SetActive(true);
+        SetEscena1GameUIVisible(false);
+        TryUnloadEscena1();
+
+        if (_canvasMenu != null) _canvasMenu.SetActive(true);
+        SetMenuCanvasPriority(true);
         if (_menuCamera != null) _menuCamera.SetActive(true);
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
+        OcultarTodosLosPaneles();
+        if (_panelInicio != null) _panelInicio.SetActive(true);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+    }
+
+    public static void SetEscena1GameUIVisible(bool visible)
+    {
+        if (!visible && TriviaUI.Instance != null)
+            TriviaUI.Instance.HideAllForMenu();
+
+        foreach (string canvasName in Escena1UiCanvasNames)
+            SetEscena1CanvasVisible(canvasName, visible);
+    }
+
+    public static void SetEscena1CanvasVisible(string canvasName, bool visible)
+    {
+        var canvas = GameObject.Find(canvasName);
+        if (canvas != null)
+            canvas.SetActive(visible);
+    }
+
+    private void SetMenuCanvasPriority(bool menuOnTop)
+    {
+        if (_canvasMenu == null) return;
+        var canvas = _canvasMenu.GetComponent<Canvas>();
+        if (canvas != null)
+            canvas.sortingOrder = menuOnTop ? MenuCanvasSortOrder : 0;
+    }
+
+    private void DestroyRunnerComponents()
+    {
+        foreach (var runner in GetComponents<NetworkRunner>())
+            Destroy(runner);
+        foreach (var sceneManager in GetComponents<NetworkSceneManagerDefault>())
+            Destroy(sceneManager);
+
+        _runner = null;
+        _callbacksRegistered = false;
+    }
+
+    private NetworkRunner GetOrCreateRunner()
+    {
+        if (_runner != null && _runner.IsRunning)
+            return _runner;
+
+        DestroyRunnerComponents();
+
+        _runner = gameObject.AddComponent<NetworkRunner>();
+        _runner.ProvideInput = true;
+        RegisterRunnerCallbacks(_runner);
+        return _runner;
+    }
+
+    private NetworkSceneManagerDefault GetOrAddSceneManager()
+    {
+        var sceneManager = GetComponent<NetworkSceneManagerDefault>();
+        if (sceneManager == null)
+            sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
+        return sceneManager;
+    }
+
+    private static void TryUnloadEscena1()
+    {
+        Scene escena1 = SceneManager.GetSceneByName("Escena1");
+        if (escena1.IsValid() && escena1.isLoaded)
+            SceneManager.UnloadSceneAsync(escena1);
     }
 
     private void LateUpdate()
@@ -161,9 +242,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     private void OcultarTodosLosPaneles() {
-        _panelPrincipal.SetActive(false);
-        _panelCrearSala.SetActive(false);
-        _panelBrowser.SetActive(false);
+        if (_panelInicio != null) _panelInicio.SetActive(false);
+        if (_panelCrearSala != null) _panelCrearSala.SetActive(false);
+        if (_panelBrowser != null) _panelBrowser.SetActive(false);
     }
 
     public void UI_CreateRoom(string roomName)
@@ -173,39 +254,32 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     public void UI_IrACrearSala() {
         OcultarTodosLosPaneles();
-        _panelCrearSala.SetActive(true);
+        if (_panelCrearSala != null)
+            _panelCrearSala.SetActive(true);
     }
 
     public async void UI_IrABrowser() {
         OcultarTodosLosPaneles();
         if (_panelBrowser != null) _panelBrowser.SetActive(true);
 
-        if (_runner == null) 
-        {
-            _runner = gameObject.AddComponent<NetworkRunner>();
-            _runner.ProvideInput = true;
-            RegisterRunnerCallbacks(_runner);
-        }
+        var runner = GetOrCreateRunner();
 
         Debug.Log("Conectando al Lobby de Fusion para buscar salas...");
-        // Esto conectará al cliente al servidor maestro para recibir la lista
-        await _runner.JoinSessionLobby(SessionLobby.ClientServer);
+        await runner.JoinSessionLobby(SessionLobby.ClientServer);
     }
 
     public void UI_BotonVolver()
     {
-        OcultarTodosLosPaneles();
+        SetEscena1GameUIVisible(false);
+        TryUnloadEscena1();
 
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
-
-        if (_runner != null)
-        {
+        if (_runner != null && _runner.IsRunning)
             _runner.Shutdown();
-            _runner = null;
-            _callbacksRegistered = false;
+        else
+        {
+            DestroyRunnerComponents();
+            ReturnToMenuScene();
         }
-
-        ReturnToMenuScene();
     }
 
     public async void UI_BotonRefrescarSalas()
@@ -229,9 +303,13 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     public void UI_VolverAlMenu() {
-        if (_runner != null) _runner.Shutdown();
-        OcultarTodosLosPaneles();
-        ReturnToMenuScene();
+        SetEscena1GameUIVisible(false);
+        TryUnloadEscena1();
+
+        if (_runner != null && _runner.IsRunning)
+            _runner.Shutdown();
+        else
+            ReturnToMenuScene();
     }
 
     public void UI_StartHost()
@@ -248,12 +326,13 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     private void Start()
     {
         _inEscena1Session = false;
+        SetEscena1GameUIVisible(false);
         OcultarTodosLosPaneles();
-        
-        if (_panelPrincipal != null)
-        {
-            _panelPrincipal.SetActive(true);
-        }
+
+        if (_panelInicio != null)
+            _panelInicio.SetActive(true);
+
+        SetMenuCanvasPriority(true);
     }
 
     private void Update()
@@ -264,37 +343,27 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     
     public async void StartGame(GameMode mode, string roomName = "TestRoom")
     {
-        if (_runner == null)
-        {
-            _runner = gameObject.AddComponent<NetworkRunner>();
-            _runner.ProvideInput = true;
-            RegisterRunnerCallbacks(_runner);
-        }
+        var runner = GetOrCreateRunner();
 
         DontDestroyOnLoad(gameObject);
 
-        // Create the NetworkSceneInfo from the current scene
         SceneRef? sceneToLoad = null;
         if (mode != GameMode.Client)
-            sceneToLoad = SceneRef.FromIndex(1); // Tu Escena2
+            sceneToLoad = SceneRef.FromIndex(1);
 
-
-        // Start or join (depends on gamemode) a session with a specific name
-        var result = await _runner.StartGame(new StartGameArgs()
+        var result = await runner.StartGame(new StartGameArgs()
         {
             GameMode = mode,
             SessionName = roomName,
             Scene = sceneToLoad,
-            SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
+            SceneManager = GetOrAddSceneManager()
         });
-        
+
         if (!result.Ok)
         {
             Debug.LogError($"Fallo al iniciar el juego: {result.ShutdownReason}");
-            // Limpieza si falla
-            Destroy(_runner);
-            _runner = null;
-            _callbacksRegistered = false;
+            DestroyRunnerComponents();
+            ReturnToMenuScene();
         }
     }
 
@@ -303,7 +372,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         if (runner.IsServer)
             SpawnOrRepositionPlayer(runner, player);
 
-        if (TriviaUI.Instance != null) TriviaUI.Instance.UpdateLobbyUI(runner);
+        if (_inEscena1Session && TriviaUI.Instance != null)
+            TriviaUI.Instance.UpdateLobbyUI(runner);
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
@@ -312,7 +382,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             runner.Despawn(networkObject);
             _spawnedCharacters.Remove(player);
         }
-        if (TriviaUI.Instance != null) TriviaUI.Instance.UpdateLobbyUI(runner);
+        if (_inEscena1Session && TriviaUI.Instance != null)
+            TriviaUI.Instance.UpdateLobbyUI(runner);
     }
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
@@ -365,8 +436,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
-        _runner = null;
-        _callbacksRegistered = false;
+        DestroyRunnerComponents();
         ReturnToMenuScene();
     }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }

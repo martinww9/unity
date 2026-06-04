@@ -47,9 +47,19 @@ public class TriviaUI : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        if (_panelLobby != null) _panelLobby.SetActive(false);
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
         if (_panelPodio != null) _panelPodio.SetActive(false);
+    }
+
+    public void HideAllForMenu()
+    {
+        if (_panelLobby != null) _panelLobby.SetActive(false);
+        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
+        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
+        if (_panelPodio != null) _panelPodio.SetActive(false);
+        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(false);
     }
 
     public bool IsLobbyVisible() => _panelLobby != null && _panelLobby.activeSelf;
@@ -63,7 +73,10 @@ public class TriviaUI : MonoBehaviour
     {
         if (runner == null) return;
 
-        if (_panelLobby != null) _panelLobby.SetActive(true);
+        Spawner.SetEscena1CanvasVisible("CanvasLobby", true);
+
+        if (_panelLobby != null)
+            _panelLobby.SetActive(true);
 
         UpdatePlayerList(runner);
 
@@ -150,6 +163,8 @@ public class TriviaUI : MonoBehaviour
         _localTotal = total;
         _cachedFeedbackData = null;
         _generandoFeedback = false;
+
+        Spawner.SetEscena1CanvasVisible("CanvasFinCarrera", true);
 
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLlegaste != null) _panelLlegaste.SetActive(true);
@@ -336,6 +351,7 @@ public class TriviaUI : MonoBehaviour
     {
         if (_panelLlegaste != null && !_panelLlegaste.activeSelf)
         {
+            Spawner.SetEscena1CanvasVisible("CanvasFinCarrera", true);
             if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
             _panelLlegaste.SetActive(true);
         }
@@ -343,6 +359,8 @@ public class TriviaUI : MonoBehaviour
 
     public void ShowPodiumForAll()
     {
+        Spawner.SetEscena1CanvasVisible("CanvasPodio", true);
+
         if (_panelPodio != null)
             _panelPodio.SetActive(true);
         UpdatePodiumLive();
@@ -371,6 +389,10 @@ public class TriviaUI : MonoBehaviour
     public void StartGameUI()
     {
         if (_panelLobby != null) _panelLobby.SetActive(false);
+
+        Spawner.SetEscena1CanvasVisible("CanvasTimer", true);
+        Spawner.SetEscena1CanvasVisible("CanvasPreguntas", true);
+
         if (Player.Local != null)
             UpdateLevelIndicator(Player.Local.CurrentLevel);
     }
