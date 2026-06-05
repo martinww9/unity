@@ -3,16 +3,81 @@
     "questions": [
         {
             "id": "N3_1_Media",
-            "question": "¿Pregunta técnica concreta enfocada en el concepto?",
+            "question": "¿En un grafo vertice-arista dirigido ponderado, ¿cuál es el algoritmo de búsqueda más eficiente si la estructura se utiliza como una lista ordenada?",
             "options": [
-                "Opción A: Mayor eficiencia en la búsqueda de elementos",
-                "Opción B: Reducción del espacio de memoria requerido",
-                "Opción C: Mejora en la velocidad de inserción y eliminación de elementos",
-                "Opción D: Nullificación de posibles errores de memorización"
+                "Búsqueda secuencial",
+                "Búsqueda binaria",
+                "Árbol binario de búsqueda",
+                "Búsqueda en profundidad"
             ],
-            "correctAnswerIndex": 0,
+            "correctAnswerIndex": 2,
             "dificultad": "Media",
             "puntaje": 20
+        },
+        {
+            "id": "N3_2_Difícil",
+            "question": "¿Cuál es la forma más eficiente de representar un grafo con una gran cantidad de vértices y aristas, considerando el tiempo de búsqueda en una lista enlazada?",
+            "options": [
+                "Matriz adyacente",
+                "Lista enlazada",
+                "Adyacencia directa",
+                "Grafo no dirigido"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "N3_3_Difícil",
+            "question": "¿Cuál es el tiempo complejo de búsqueda en un árbol binario ordenado?",
+            "options": [
+                "O(1)",
+                "O(log n)",
+                "O(n)",
+                "O(n log n)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "N3_4_Difícil",
+            "question": "¿En un árbol binario de búsqueda, si se busca un valor que no está presente en el árbol y se llega a un nodo vacío, ¿qué ocurre con la estructura del árbol?",
+            "options": [
+                "El valor buscado es insertado en el lugar correcto del árbol.",
+                "El valor buscado no es encontrado en el árbol.",
+                "La estructura del árbol no cambia, pero se actualiza la información del nodo vacío.",
+                "Se elimina el nodo vacío sin afectar la estructura del árbol."
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "N3_5_Difícil",
+            "question": "¿Considera un algoritmo de búsqueda A estrella con una heurística que utiliza el tiempo de busca binaria como métrica. ¿Cuál es la principal ventaja de utilizar esta heurística en comparación con la búsqueda binaria pura?",
+            "options": [
+                "Reducir significativamente el número de comparaciones necesarias para encontrar un elemento",
+                "Mejorar la eficiencia del algoritmo en caso de búsquedas secuenciales",
+                "Aumentar la complejidad computacional del algoritmo",
+                "Permitir la implementación de una búsqueda secuencial en vector ordenado"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30
+        },
+        {
+            "id": "N3_6_Difícil",
+            "question": "¿Cuál es el requisito para que una función de dispersión hash sea considerada perfecta en la búsqueda en tablas de hash?",
+            "options": [
+                "La cantidad de memoria accesible durante la búsqueda debe ser constante",
+                "O(1) / memoria accesibles durante la búsqueda",
+                "O(n log n) / tiempo de búsqueda",
+                "O(mj) / tamaño del conjunto"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30
         }
     ]
 }

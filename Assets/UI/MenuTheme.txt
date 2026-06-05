@@ -7,3 +7,9 @@ Menu UI palette (RGB 0-1):
 - input_bg: #2d3e52
 
 Re-apply in Editor: Tools > Menu UI > Apply Redesign
+
+Escena Juego (canvases):
+- Tools > Juego UI > Setup Canvases (referencias JuegoUI + sorting)
+- Tools > Juego UI > Apply Redesign (paleta + layout; incluye Setup)
+
+Scenes: MenuPrincipal (menú), Juego (partida) — build index 0 y 1.

@@ -19,8 +19,9 @@ public class Player : NetworkBehaviour
     [Networked] private bool NetAnimWalking { get; set; }
     [Networked] private bool NetAnimRunning { get; set; }
 
-    private const float CycleDuration = 13f;
-    private const float ResponseWindow = 10f;
+    private const float CycleDuration = 10f;
+    private const float ResponseWindow = 5f;
+    private const float StunDuration = 3f;
 
     private int _lastDisplayedQuestionIndex = -1;
     [SerializeField] private Animator _animator;
@@ -176,7 +177,6 @@ public class Player : NetworkBehaviour
             LevelQuestionIndex++;
         }
 
-        float remainingTime = GetRemainingResponseTime();
         int currentQIndex = LevelQuestionIndex;
 
         if (currentQIndex < 0) return;
@@ -184,28 +184,63 @@ public class Player : NetworkBehaviour
         int maxQuestions = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
         if (currentQIndex >= maxQuestions) return;
 
-        if (remainingTime > 0 && LastAnsweredIndex != currentQIndex)
+        if (IsInResponseWindow() && LastAnsweredIndex != currentQIndex)
         {
             if (State != EPlayerState.Responding && State != EPlayerState.Stunned)
                 State = EPlayerState.Responding;
         }
 
-        if (remainingTime <= 0 && State == EPlayerState.Responding)
+        if (!IsInResponseWindow() && State == EPlayerState.Responding)
         {
             State = EPlayerState.Stunned;
-            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f);
+            _stunTimer = TickTimer.CreateFromSeconds(Runner, StunDuration);
             LastAnsweredIndex = currentQIndex;
         }
     }
 
+    public float GetElapsedQuestionCycleTime()
+    {
+        if (!LevelCycleTimer.IsRunning)
+            return 0f;
+
+        float remaining = LevelCycleTimer.RemainingTime(Runner) ?? 0f;
+        return Mathf.Clamp(CycleDuration - remaining, 0f, CycleDuration);
+    }
+
     public float GetRemainingResponseTime()
     {
-        if (LevelCycleTimer.IsRunning)
-        {
-            float elapsed = CycleDuration - (LevelCycleTimer.RemainingTime(Runner) ?? 0);
-            return ResponseWindow - elapsed;
-        }
-        return 0;
+        if (!LevelCycleTimer.IsRunning)
+            return 0f;
+
+        return Mathf.Clamp(ResponseWindow - GetElapsedQuestionCycleTime(), 0f, ResponseWindow);
+    }
+
+    public float GetRemainingCycleTime()
+    {
+        if (!LevelCycleTimer.IsRunning)
+            return 0f;
+
+        float remaining = LevelCycleTimer.RemainingTime(Runner) ?? 0f;
+        return Mathf.Clamp(remaining, 0f, CycleDuration);
+    }
+
+    public float GetRemainingNextQuestionTime()
+    {
+        return GetRemainingCycleTime();
+    }
+
+    public bool HasActiveQuestion()
+    {
+        if (!LevelCycleTimer.IsRunning || LevelQuestionIndex < 0)
+            return false;
+
+        int maxQuestions = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
+        return LevelQuestionIndex < maxQuestions;
+    }
+
+    public bool IsInResponseWindow()
+    {
+        return HasActiveQuestion() && GetElapsedQuestionCycleTime() < ResponseWindow;
     }
 
     private void HandleRespondingState(NetworkInputData data)
@@ -226,7 +261,7 @@ public class Player : NetworkBehaviour
         else
         {
             State = EPlayerState.Stunned;
-            _stunTimer = TickTimer.CreateFromSeconds(Runner, 2f);
+            _stunTimer = TickTimer.CreateFromSeconds(Runner, StunDuration);
         }
     }
 
@@ -283,6 +318,58 @@ public class Player : NetworkBehaviour
         FinishRace(rank);
     }
 
+    private void UpdateLocalTriviaHud(bool matchStarted)
+    {
+        var ui = TriviaUI.Instance;
+        if (ui == null) return;
+
+        if (!matchStarted)
+        {
+            ui.ClearTimer();
+            return;
+        }
+
+        if (State == EPlayerState.Finished)
+        {
+            ui.ClearTimer();
+            ui.ShowWaiting();
+            return;
+        }
+
+        ui.UpdateLevelIndicator(CurrentLevel);
+
+        if (!HasActiveQuestion())
+        {
+            ui.ClearTimer();
+            ui.Hide();
+            return;
+        }
+
+        bool waitingForAnswer = State == EPlayerState.Responding &&
+            IsInResponseWindow() &&
+            LastAnsweredIndex != LevelQuestionIndex;
+
+        if (waitingForAnswer)
+        {
+            ui.UpdateResponseTimer(GetRemainingResponseTime());
+
+            int currentIdx = LevelQuestionIndex;
+            if (_lastDisplayedQuestionIndex != currentIdx)
+            {
+                var q = QuestionManager.Instance?.GetQuestion(CurrentLevel, currentIdx);
+                if (q != null)
+                {
+                    ui.ShowQuestion(q);
+                    _lastDisplayedQuestionIndex = currentIdx;
+                }
+            }
+            return;
+        }
+
+        ui.Hide();
+        ui.UpdateNextQuestionTimer(GetRemainingNextQuestionTime());
+    }
+
     public override void Render()
     {
         if (_cameraPivot != null)
@@ -292,37 +379,7 @@ public class Player : NetworkBehaviour
         {
             ResolveGameManager();
             bool matchStarted = GameManager.IsMatchStartedSafe;
-
-            if (matchStarted && State != EPlayerState.Finished)
-            {
-                if (TriviaUI.Instance != null)
-                {
-                    TriviaUI.Instance.UpdateTimer(GetRemainingResponseTime());
-                    TriviaUI.Instance.UpdateLevelIndicator(CurrentLevel);
-                }
-            }
-
-            if (State == EPlayerState.Finished)
-            {
-                TriviaUI.Instance?.ShowWaiting();
-            }
-            else if (State == EPlayerState.Responding)
-            {
-                int currentIdx = LevelQuestionIndex;
-                if (_lastDisplayedQuestionIndex != currentIdx)
-                {
-                    var q = QuestionManager.Instance?.GetQuestion(CurrentLevel, currentIdx);
-                    if (q != null)
-                    {
-                        TriviaUI.Instance?.ShowQuestion(q);
-                        _lastDisplayedQuestionIndex = currentIdx;
-                    }
-                }
-            }
-            else if (State != EPlayerState.Finished)
-            {
-                TriviaUI.Instance?.Hide();
-            }
+            UpdateLocalTriviaHud(matchStarted);
         }
 
         if (_animator != null)

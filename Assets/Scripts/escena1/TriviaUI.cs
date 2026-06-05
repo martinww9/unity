@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -23,6 +24,7 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _botonStart;
     [SerializeField] private GameObject _botonRestartServer;
     [SerializeField] private GameObject _botonGenerarNuevas;
+    [SerializeField] private GameObject _botonCargarJson;
 
     [Header("Post-Carrera")]
     [SerializeField] private GameObject _panelLlegaste;
@@ -43,17 +45,17 @@ public class TriviaUI : MonoBehaviour
     private bool _generandoFeedback = false;
     private int _localScore;
     private int _localTotal;
+    private Coroutine _refreshLobbyCoroutine;
+    private NetworkRunner _lobbyRunner;
+    private float _lastLobbyDiagLogTime = -10f;
 
     private void Awake()
     {
         Instance = this;
-        if (_panelLobby != null) _panelLobby.SetActive(false);
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
-        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
-        if (_panelPodio != null) _panelPodio.SetActive(false);
+        HideAllLocalPanels();
     }
 
-    public void HideAllForMenu()
+    private void HideAllLocalPanels()
     {
         if (_panelLobby != null) _panelLobby.SetActive(false);
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
@@ -62,41 +64,86 @@ public class TriviaUI : MonoBehaviour
         if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(false);
     }
 
+    private void ShowOnlyLobbyPanel()
+    {
+        HideAllLocalPanels();
+        if (_panelLobby != null) _panelLobby.SetActive(true);
+    }
+
+    private void ShowOnlyQuestionPanel()
+    {
+        HideAllLocalPanels();
+        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
+    }
+
+    private void ShowOnlyFinishPanel()
+    {
+        HideAllLocalPanels();
+        if (_panelLlegaste != null) _panelLlegaste.SetActive(true);
+    }
+
+    private void ShowOnlyPodiumPanel()
+    {
+        HideAllLocalPanels();
+        if (_panelPodio != null) _panelPodio.SetActive(true);
+    }
+
+    private void ShowOnlyFeedbackPanel()
+    {
+        HideAllLocalPanels();
+        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(true);
+    }
+
+    public void HideAllForMenu()
+    {
+        HideAllLocalPanels();
+    }
+
     public bool IsLobbyVisible() => _panelLobby != null && _panelLobby.activeSelf;
 
     public bool BlocksMouseLook() =>
-        (_panelPrincipal != null && _panelPrincipal.activeSelf)
+        (_panelLobby != null && _panelLobby.activeSelf)
+        || (_panelPrincipal != null && _panelPrincipal.activeSelf)
         || (_panelLlegaste != null && _panelLlegaste.activeSelf)
+        || (_panelPodio != null && _panelPodio.activeSelf)
         || (panelFeedbackFinal != null && panelFeedbackFinal.activeSelf);
 
     public void ShowLobby(NetworkRunner runner)
     {
         if (runner == null) return;
 
-        Spawner.SetEscena1CanvasVisible("CanvasLobby", true);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowLobbyPhase();
+        else
+        {
+            Spawner.SetJuegoGameUIVisible(false);
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", true);
+        }
 
-        if (_panelLobby != null)
-            _panelLobby.SetActive(true);
+        ShowOnlyLobbyPanel();
 
         UpdatePlayerList(runner);
 
+        _lobbyRunner = runner;
+
         bool isHost = runner.IsServer || runner.IsSharedModeMasterClient;
         SetHostButtonsVisible(isHost);
-
-        if (isHost)
-            RefreshHostButtonStates();
+        RefreshHostButtonStates(runner);
     }
 
     private void SetHostButtonsVisible(bool visible)
     {
         if (_botonStart != null) _botonStart.SetActive(visible);
         if (_botonGenerarNuevas != null) _botonGenerarNuevas.SetActive(visible);
+        if (_botonCargarJson != null) _botonCargarJson.SetActive(visible);
         if (_botonRestartServer != null) _botonRestartServer.SetActive(visible);
     }
 
-    public void RefreshHostButtonStates()
+    public void RefreshHostButtonStates(NetworkRunner runner = null)
     {
-        NetworkRunner runner = FindAnyObjectByType<NetworkRunner>();
+        runner ??= _lobbyRunner;
+        if (runner == null)
+            runner = FindAnyObjectByType<NetworkRunner>();
         if (runner == null) return;
 
         bool isHost = runner.IsServer || runner.IsSharedModeMasterClient;
@@ -105,6 +152,19 @@ public class TriviaUI : MonoBehaviour
         SetHostButtonsVisible(true);
 
         bool ready = QuestionManager.Instance != null && QuestionManager.Instance.IsReady;
+
+        if (!ready && Time.unscaledTime - _lastLobbyDiagLogTime >= 5f)
+        {
+            _lastLobbyDiagLogTime = Time.unscaledTime;
+            Debug.Log(
+                $"[Lobby] Iniciar deshabilitado — QM={(QuestionManager.Instance != null)}, " +
+                $"IsReady={(QuestionManager.Instance != null && QuestionManager.Instance.IsReady)}, " +
+                $"generando={_generandoPreguntas}, isHost={isHost}");
+        }
+        else if (ready)
+        {
+            _lastLobbyDiagLogTime = -10f;
+        }
 
         if (_botonStart != null)
         {
@@ -120,6 +180,13 @@ public class TriviaUI : MonoBehaviour
             SetButtonLabel(_botonGenerarNuevas, _generandoPreguntas
                 ? "Generando..."
                 : (ready ? "Regenerar Preguntas" : "Generar Preguntas (IA)"));
+        }
+
+        if (_botonCargarJson != null)
+        {
+            Button btn = _botonCargarJson.GetComponent<Button>();
+            if (btn != null) btn.interactable = !_generandoPreguntas;
+            SetButtonLabel(_botonCargarJson, "Cargar JSON");
         }
 
         if (_botonRestartServer != null)
@@ -154,7 +221,7 @@ public class TriviaUI : MonoBehaviour
     public void UpdateLevelIndicator(int level)
     {
         if (_textoNivel != null)
-            _textoNivel.text = $"Nivel {level}/3";
+            _textoNivel.text = LevelTopics.FormatIndicator(level);
     }
 
     public void RegistrarFinDeCarreraLocal(int score, int total)
@@ -164,10 +231,18 @@ public class TriviaUI : MonoBehaviour
         _cachedFeedbackData = null;
         _generandoFeedback = false;
 
-        Spawner.SetEscena1CanvasVisible("CanvasFinCarrera", true);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowFinCarreraPhase();
+        else
+        {
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
+        }
 
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
-        if (_panelLlegaste != null) _panelLlegaste.SetActive(true);
+        ShowOnlyFinishPanel();
 
         if (_textoPuntajeLlegada != null)
             _textoPuntajeLlegada.text = $"Puntaje final: {score}/{total}";
@@ -224,8 +299,18 @@ public class TriviaUI : MonoBehaviour
     {
         if (_cachedFeedbackData == null) return;
 
-        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(true);
-        if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowFinCarreraPhase();
+        else
+        {
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
+        }
+
+        ShowOnlyFeedbackPanel();
 
         if (textoMensajeGeneral != null && !string.IsNullOrEmpty(_cachedFeedbackData.mensaje_general))
             textoMensajeGeneral.text = _cachedFeedbackData.mensaje_general;
@@ -267,9 +352,21 @@ public class TriviaUI : MonoBehaviour
             QuestionManager.Instance.RequestNewGeneration();
     }
 
+    public void UI_BotonCargarPreguntasJson()
+    {
+        _generandoPreguntas = false;
+
+        if (QuestionManager.Instance != null)
+            QuestionManager.Instance.LoadStaticQuestionsFromFile();
+        else
+            Debug.LogError("Error: QuestionManager no está listo para cargar JSON.");
+
+        RefreshHostButtonStates(_lobbyRunner);
+    }
+
     public void UI_BotonIniciarPartida()
     {
-        if (_panelLobby != null) _panelLobby.SetActive(false);
+        HideAllLocalPanels();
 
         if (GameManager.Instance != null)
             GameManager.Instance.UI_BotonIniciarPartida();
@@ -279,7 +376,7 @@ public class TriviaUI : MonoBehaviour
 
     public void ShowQuestion(Question q)
     {
-        if (_panelPrincipal != null) _panelPrincipal.SetActive(true);
+        ShowOnlyQuestionPanel();
         if (_preguntaText != null) _preguntaText.text = q.question;
 
         for (int i = 0; i < _opcionesTexts.Length; i++)
@@ -291,21 +388,28 @@ public class TriviaUI : MonoBehaviour
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
     }
 
-    public void UpdateTimer(float time)
+    public void UpdateResponseTimer(float seconds)
     {
         if (_timerText == null) return;
 
-        if (time >= 0)
-        {
-            _timerText.text = time.ToString("F1") + "s";
-            _timerText.color = Color.white;
-        }
-        else
-        {
-            float cuentaAtrasSiguiente = Mathf.Max(0, 5f + time);
-            _timerText.text = "Siguiente en: " + cuentaAtrasSiguiente.ToString("F1") + "s";
-            _timerText.color = Color.yellow;
-        }
+        _timerText.text = "Responder: " + Mathf.Max(0f, seconds).ToString("F1") + "s";
+        _timerText.color = Color.white;
+    }
+
+    public void UpdateNextQuestionTimer(float seconds)
+    {
+        if (_timerText == null) return;
+
+        _timerText.text = "Siguiente en: " + Mathf.Max(0f, seconds).ToString("F1") + "s";
+        _timerText.color = Color.yellow;
+    }
+
+    public void ClearTimer()
+    {
+        if (_timerText == null) return;
+
+        _timerText.text = "";
+        _timerText.color = Color.white;
     }
 
     public void OnOptionClicked(int index)
@@ -330,6 +434,46 @@ public class TriviaUI : MonoBehaviour
         RefreshHostButtonStates();
     }
 
+    public void RefreshLobbyWhenReady()
+    {
+        if (_refreshLobbyCoroutine != null)
+            StopCoroutine(_refreshLobbyCoroutine);
+        _refreshLobbyCoroutine = StartCoroutine(RefreshLobbyWhenReadyRoutine());
+    }
+
+    private IEnumerator RefreshLobbyWhenReadyRoutine()
+    {
+        const float timeout = 60f;
+        float elapsed = 0f;
+
+        while (elapsed < timeout)
+        {
+            if (!IsLobbyVisible())
+            {
+                _refreshLobbyCoroutine = null;
+                yield break;
+            }
+
+            if (QuestionManager.Instance != null)
+            {
+                RefreshHostButtonStates(_lobbyRunner);
+                if (QuestionManager.Instance.IsReady)
+                {
+                    _refreshLobbyCoroutine = null;
+                    yield break;
+                }
+            }
+
+            yield return null;
+            elapsed += Time.deltaTime;
+        }
+
+        if (IsLobbyVisible())
+            RefreshHostButtonStates(_lobbyRunner);
+
+        _refreshLobbyCoroutine = null;
+    }
+
     public void UI_BotonReiniciarServidor()
     {
         if (GameManager.Instance != null)
@@ -342,27 +486,47 @@ public class TriviaUI : MonoBehaviour
         if (runner != null)
             runner.Shutdown();
 
-        UnityEngine.SceneManagement.SceneManager.LoadScene("UI");
+        UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.MenuPrincipal);
     }
 
     public void UI_BotonRestartServer() => UI_BotonReiniciarServidor();
 
     public void ShowWaiting()
     {
+        if ((panelFeedbackFinal != null && panelFeedbackFinal.activeSelf) ||
+            (_panelPodio != null && _panelPodio.activeSelf))
+            return;
+
         if (_panelLlegaste != null && !_panelLlegaste.activeSelf)
         {
-            Spawner.SetEscena1CanvasVisible("CanvasFinCarrera", true);
-            if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
-            _panelLlegaste.SetActive(true);
+            if (JuegoUI.Instance != null)
+                JuegoUI.Instance.ShowFinCarreraPhase();
+            else
+            {
+                Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+                Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+                Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+                Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
+                Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
+            }
+            ShowOnlyFinishPanel();
         }
     }
 
     public void ShowPodiumForAll()
     {
-        Spawner.SetEscena1CanvasVisible("CanvasPodio", true);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowPodiumPhase();
+        else
+        {
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", true);
+        }
 
-        if (_panelPodio != null)
-            _panelPodio.SetActive(true);
+        ShowOnlyPodiumPanel();
         UpdatePodiumLive();
     }
 
@@ -388,10 +552,18 @@ public class TriviaUI : MonoBehaviour
 
     public void StartGameUI()
     {
-        if (_panelLobby != null) _panelLobby.SetActive(false);
+        HideAllLocalPanels();
 
-        Spawner.SetEscena1CanvasVisible("CanvasTimer", true);
-        Spawner.SetEscena1CanvasVisible("CanvasPreguntas", true);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowGameplayPhase();
+        else
+        {
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", true);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", true);
+        }
 
         if (Player.Local != null)
             UpdateLevelIndicator(Player.Local.CurrentLevel);

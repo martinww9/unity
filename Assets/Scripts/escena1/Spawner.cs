@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
@@ -12,7 +13,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 {
     private const int MenuCanvasSortOrder = 100;
 
-    private static readonly string[] Escena1UiCanvasNames =
+    private static readonly string[] JuegoUiCanvasNames =
     {
         "CanvasLobby",
         "CanvasTimer",
@@ -43,9 +44,11 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
     private NetworkRunner _runner;
+    private NetworkSceneManagerDefault _sceneManager;
     private bool _mouseButton0;
     private bool _callbacksRegistered;
-    private bool _inEscena1Session;
+    private bool _inJuegoSession;
+    private bool _suppressReturnToMenuOnShutdown;
 
     private static bool IsAltHeld()
     {
@@ -56,7 +59,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private bool AllowMouseLook()
     {
-        if (!_inEscena1Session) return false;
+        if (!_inJuegoSession) return false;
         if (IsAltHeld()) return false;
         if (TriviaUI.Instance != null && TriviaUI.Instance.BlocksMouseLook())
             return false;
@@ -72,14 +75,15 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             return;
         }
 
-        if (!_inEscena1Session)
+        if (!_inJuegoSession)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             return;
         }
 
-        if (IsAltHeld())
+        bool uiBlocksMouseLook = TriviaUI.Instance != null && TriviaUI.Instance.BlocksMouseLook();
+        if (IsAltHeld() || uiBlocksMouseLook)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -91,9 +95,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         }
     }
 
-    private void EnterEscena1Session()
+    private void EnterJuegoSession()
     {
-        _inEscena1Session = true;
+        _inJuegoSession = true;
 
         SetMenuCanvasPriority(false);
         if (_canvasMenu != null) _canvasMenu.SetActive(false);
@@ -102,11 +106,11 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private void ReturnToMenuScene()
     {
-        _inEscena1Session = false;
+        _inJuegoSession = false;
         _spawnedCharacters.Clear();
 
-        SetEscena1GameUIVisible(false);
-        TryUnloadEscena1();
+        SetJuegoGameUIVisible(false);
+        TryUnloadJuegoScene();
 
         if (_canvasMenu != null) _canvasMenu.SetActive(true);
         SetMenuCanvasPriority(true);
@@ -118,20 +122,34 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         Cursor.visible = true;
     }
 
-    public static void SetEscena1GameUIVisible(bool visible)
+    public static void SetJuegoGameUIVisible(bool visible)
     {
-        if (!visible && TriviaUI.Instance != null)
-            TriviaUI.Instance.HideAllForMenu();
+        if (!visible)
+        {
+            if (JuegoUI.Instance != null)
+                JuegoUI.Instance.HideAllCanvases();
+            else if (TriviaUI.Instance != null)
+                TriviaUI.Instance.HideAllForMenu();
 
-        foreach (string canvasName in Escena1UiCanvasNames)
-            SetEscena1CanvasVisible(canvasName, visible);
+            foreach (string canvasName in JuegoUiCanvasNames)
+                SetJuegoCanvasVisible(canvasName, false);
+            return;
+        }
+
+        foreach (string canvasName in JuegoUiCanvasNames)
+            SetJuegoCanvasVisible(canvasName, true);
     }
 
-    public static void SetEscena1CanvasVisible(string canvasName, bool visible)
+    public static void SetJuegoCanvasVisible(string canvasName, bool visible)
     {
-        var canvas = GameObject.Find(canvasName);
-        if (canvas != null)
-            canvas.SetActive(visible);
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.SetCanvasByName(canvasName, visible);
+        else
+        {
+            var canvas = GameObject.Find(canvasName);
+            if (canvas != null)
+                canvas.SetActive(visible);
+        }
     }
 
     private void SetMenuCanvasPriority(bool menuOnTop)
@@ -142,12 +160,54 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             canvas.sortingOrder = menuOnTop ? MenuCanvasSortOrder : 0;
     }
 
+    private void Awake()
+    {
+        EnsureSceneManager();
+    }
+
+    private void EnsureSceneManager()
+    {
+        if (_sceneManager != null) return;
+
+        foreach (var sceneManager in GetComponents<NetworkSceneManagerDefault>())
+        {
+            if (sceneManager != null)
+            {
+                _sceneManager = sceneManager;
+                break;
+            }
+        }
+
+        if (_sceneManager == null)
+            _sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
+    }
+
+    private void PruneDuplicateSceneManagers()
+    {
+        foreach (var sceneManager in GetComponents<NetworkSceneManagerDefault>())
+        {
+            if (sceneManager != null && sceneManager != _sceneManager)
+                Destroy(sceneManager);
+        }
+    }
+
+    private void ShutdownSceneManagerOnly()
+    {
+        EnsureSceneManager();
+        if (_sceneManager != null)
+            _sceneManager.Shutdown();
+    }
+
     private void DestroyRunnerComponents()
     {
         foreach (var runner in GetComponents<NetworkRunner>())
-            Destroy(runner);
-        foreach (var sceneManager in GetComponents<NetworkSceneManagerDefault>())
-            Destroy(sceneManager);
+        {
+            if (runner != null)
+                Destroy(runner);
+        }
+
+        ShutdownSceneManagerOnly();
+        PruneDuplicateSceneManagers();
 
         _runner = null;
         _callbacksRegistered = false;
@@ -158,7 +218,14 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         if (_runner != null && _runner.IsRunning)
             return _runner;
 
-        DestroyRunnerComponents();
+        foreach (var runner in GetComponents<NetworkRunner>())
+        {
+            if (runner != null)
+                Destroy(runner);
+        }
+
+        _runner = null;
+        _callbacksRegistered = false;
 
         _runner = gameObject.AddComponent<NetworkRunner>();
         _runner.ProvideInput = true;
@@ -168,17 +235,36 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private NetworkSceneManagerDefault GetOrAddSceneManager()
     {
-        var sceneManager = GetComponent<NetworkSceneManagerDefault>();
-        if (sceneManager == null)
-            sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
-        return sceneManager;
+        EnsureSceneManager();
+        PruneDuplicateSceneManagers();
+        return _sceneManager;
     }
 
-    private static void TryUnloadEscena1()
+    private async Task ShutdownRunnerForGameTransitionAsync()
     {
-        Scene escena1 = SceneManager.GetSceneByName("Escena1");
-        if (escena1.IsValid() && escena1.isLoaded)
-            SceneManager.UnloadSceneAsync(escena1);
+        if (_runner == null || !_runner.IsRunning)
+            return;
+
+        _suppressReturnToMenuOnShutdown = true;
+        _runner.Shutdown();
+
+        for (int i = 0; i < 120; i++)
+        {
+            if (_runner == null || !_runner.IsRunning)
+                break;
+            await Task.Delay(50);
+        }
+
+        _runner = null;
+        _callbacksRegistered = false;
+        _suppressReturnToMenuOnShutdown = false;
+    }
+
+    private static void TryUnloadJuegoScene()
+    {
+        Scene juego = SceneManager.GetSceneByName(SceneNames.Juego);
+        if (juego.IsValid() && juego.isLoaded)
+            SceneManager.UnloadSceneAsync(juego);
     }
 
     private void LateUpdate()
@@ -270,8 +356,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     public void UI_BotonVolver()
     {
-        SetEscena1GameUIVisible(false);
-        TryUnloadEscena1();
+        SetJuegoGameUIVisible(false);
+        TryUnloadJuegoScene();
 
         if (_runner != null && _runner.IsRunning)
             _runner.Shutdown();
@@ -303,8 +389,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     public void UI_VolverAlMenu() {
-        SetEscena1GameUIVisible(false);
-        TryUnloadEscena1();
+        SetJuegoGameUIVisible(false);
+        TryUnloadJuegoScene();
 
         if (_runner != null && _runner.IsRunning)
             _runner.Shutdown();
@@ -325,8 +411,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private void Start()
     {
-        _inEscena1Session = false;
-        SetEscena1GameUIVisible(false);
+        _inJuegoSession = false;
+        SetJuegoGameUIVisible(false);
         OcultarTodosLosPaneles();
 
         if (_panelInicio != null)
@@ -343,6 +429,8 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     
     public async void StartGame(GameMode mode, string roomName = "TestRoom")
     {
+        await ShutdownRunnerForGameTransitionAsync();
+
         var runner = GetOrCreateRunner();
 
         DontDestroyOnLoad(gameObject);
@@ -372,7 +460,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         if (runner.IsServer)
             SpawnOrRepositionPlayer(runner, player);
 
-        if (_inEscena1Session && TriviaUI.Instance != null)
+        if (_inJuegoSession && TriviaUI.Instance != null)
             TriviaUI.Instance.UpdateLobbyUI(runner);
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
@@ -382,7 +470,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             runner.Despawn(networkObject);
             _spawnedCharacters.Remove(player);
         }
-        if (_inEscena1Session && TriviaUI.Instance != null)
+        if (_inJuegoSession && TriviaUI.Instance != null)
             TriviaUI.Instance.UpdateLobbyUI(runner);
     }
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
@@ -437,7 +525,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
         DestroyRunnerComponents();
-        ReturnToMenuScene();
+
+        if (!_suppressReturnToMenuOnShutdown)
+            ReturnToMenuScene();
     }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
@@ -473,7 +563,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnSceneLoadDone(NetworkRunner runner) {
         Debug.Log("Entramos a la sesión. Mostrando Lobby.");
 
-        EnterEscena1Session();
+        EnterJuegoSession();
         OcultarTodosLosPaneles();
 
         if (runner.IsServer)
@@ -482,8 +572,14 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
                 SpawnOrRepositionPlayer(runner, player);
         }
 
+        if (runner.IsServer && QuestionManager.Instance != null)
+            QuestionManager.Instance.EnsureHostQuestionsLoaded();
+
         if (TriviaUI.Instance != null)
+        {
             TriviaUI.Instance.ShowLobby(runner);
+            TriviaUI.Instance.RefreshLobbyWhenReady();
+        }
     }
     void INetworkRunnerCallbacks.OnSceneLoadStart(NetworkRunner runner) { }
     void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

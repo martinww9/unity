@@ -20,6 +20,14 @@ public class LevelQuestionPool
 }
 
 [Serializable]
+public class QuestionsFile
+{
+    public int schemaVersion;
+    public string status;
+    public LevelQuestionPool[] levels;
+}
+
+[Serializable]
 public class GenerateResponse
 {
     public string status;

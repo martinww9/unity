@@ -7,15 +7,7 @@ using UnityEditor.SceneManagement;
 
 public static class MenuUIRedesign
 {
-    const string ScenePath = "Assets/Scenes/UI/UI.unity";
-
-    static readonly Color BgPrimary = new(0.102f, 0.137f, 0.196f, 1f);
-    static readonly Color PanelSurface = new(0.141f, 0.204f, 0.278f, 1f);
-    static readonly Color Accent = new(0.239f, 0.545f, 0.992f, 1f);
-    static readonly Color AccentPressed = new(0.18f, 0.42f, 0.78f, 1f);
-    static readonly Color TextPrimary = new(0.941f, 0.957f, 0.973f, 1f);
-    static readonly Color TextSecondary = new(0.659f, 0.722f, 0.8f, 1f);
-    static readonly Color InputBg = new(0.176f, 0.243f, 0.322f, 1f);
+    const string ScenePath = "Assets/Scenes/MenuPrincipalEscena/MenuPrincipal.unity";
 
     [MenuItem("Tools/Menu UI/Apply Redesign")]
     public static void ApplyRedesign()
@@ -33,14 +25,7 @@ public static class MenuUIRedesign
         if (menuCanvas != null)
             menuCanvas.sortingOrder = 100;
 
-        var scaler = canvasMenu.GetComponent<CanvasScaler>();
-        if (scaler != null)
-        {
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
-
+        UITheme.ApplyCanvasScaler(canvasMenu.GetComponent<CanvasScaler>());
         EnsureBackground(canvasMenu.transform);
 
         var panelInicio = FindChild(canvasMenu.transform, "PanelInicio");
@@ -58,21 +43,21 @@ public static class MenuUIRedesign
         if (panelInicio != null)
         {
             panelInicio.gameObject.SetActive(true);
-            StylePanelCard(panelInicio, 520f, 400f);
+            UITheme.StylePanelCard(panelInicio as RectTransform, 520f, 400f);
             StylePanelInicioContent(panelInicio);
         }
 
         if (panelBrowser != null)
         {
             panelBrowser.gameObject.SetActive(false);
-            StylePanelCard(panelBrowser, 720f, 520f);
+            UITheme.StylePanelCard(panelBrowser as RectTransform, 720f, 520f);
             StylePanelBrowser(panelBrowser);
         }
 
         if (panelCrear != null)
         {
             panelCrear.gameObject.SetActive(false);
-            StylePanelCard(panelCrear, 520f, 400f);
+            UITheme.StylePanelCard(panelCrear as RectTransform, 520f, 400f);
             StylePanelCrearSala(panelCrear);
         }
 
@@ -100,7 +85,7 @@ public static class MenuUIRedesign
         rt.offsetMax = Vector2.zero;
         rt.localScale = Vector3.one;
         var img = bg.GetComponent<Image>();
-        img.color = BgPrimary;
+        img.color = UITheme.BgPrimary;
         img.raycastTarget = true;
     }
 
@@ -117,43 +102,21 @@ public static class MenuUIRedesign
         if (go != null) Object.DestroyImmediate(go);
     }
 
-    static void StylePanelCard(Transform panel, float width, float height)
-    {
-        var rt = panel.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.5f, 0.5f);
-        rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(width, height);
-        rt.anchoredPosition = Vector2.zero;
-        rt.localScale = Vector3.one;
-
-        var img = panel.GetComponent<Image>();
-        if (img == null) img = panel.gameObject.AddComponent<Image>();
-        img.color = PanelSurface;
-        img.type = Image.Type.Sliced;
-    }
-
     static void StylePanelInicioContent(Transform panel)
     {
         foreach (var tmp in panel.GetComponentsInChildren<TMP_Text>(true))
         {
             if (tmp.name.Contains("Title") || tmp.fontSize >= 32)
             {
-                tmp.text = "Trivia Estructuras de Datos";
+                UITheme.StyleTitleText(tmp, "Trivia Estructuras de Datos");
                 tmp.fontSize = 42;
-                tmp.fontStyle = FontStyles.Bold;
-                tmp.color = TextPrimary;
-                tmp.alignment = TextAlignmentOptions.Center;
             }
             else if (tmp.GetComponentInParent<Button>() == null)
-            {
-                tmp.color = TextSecondary;
-                tmp.fontSize = 22;
-            }
+                UITheme.StyleBodyText(tmp);
         }
 
-        StyleButton(FindDeep(panel, "Join_Button"), "Unirse a sala", true);
-        StyleButton(FindDeep(panel, "Host_Button"), "Crear sala", false);
+        UITheme.StyleButton(UITheme.FindDeep(panel, "Join_Button"), "Unirse a sala", true);
+        UITheme.StyleButton(UITheme.FindDeep(panel, "Host_Button"), "Crear sala", false);
     }
 
     static void StylePanelBrowser(Transform panel)
@@ -161,26 +124,19 @@ public static class MenuUIRedesign
         foreach (var tmp in panel.GetComponentsInChildren<TMP_Text>(true))
         {
             if (tmp.GetComponentInParent<Button>() == null && tmp.fontSize >= 28)
-            {
-                tmp.text = "Salas disponibles";
-                tmp.fontSize = 36;
-                tmp.fontStyle = FontStyles.Bold;
-                tmp.color = TextPrimary;
-            }
+                UITheme.StyleTitleText(tmp, "Salas disponibles");
             else if (tmp.GetComponentInParent<Button>() == null)
-                tmp.color = TextSecondary;
+            {
+                UITheme.EnsureUniqueTextVisual(tmp);
+                tmp.color = UITheme.TextSecondary;
+            }
         }
 
-        StyleButton(FindDeep(panel, "ButtonRefrescar"), "Refrescar", false);
-        StyleButton(FindDeep(panel, "ButtonVolver"), "Volver", false);
+        UITheme.StyleButton(UITheme.FindDeep(panel, "ButtonRefrescar"), "Refrescar", false);
+        UITheme.StyleButton(UITheme.FindDeep(panel, "ButtonVolver"), "Volver", false);
 
-        var lobbys = FindDeep(panel, "Lobbys");
-        if (lobbys != null)
-        {
-            var img = lobbys.GetComponent<Image>();
-            if (img == null) img = lobbys.gameObject.AddComponent<Image>();
-            img.color = new Color(0.09f, 0.12f, 0.17f, 1f);
-        }
+        var lobbys = UITheme.FindDeep(panel, "Lobbys");
+        UITheme.StyleListSurface(lobbys);
 
         var empty = panel.Find("EmptyStateText");
         if (empty == null)
@@ -191,9 +147,7 @@ public static class MenuUIRedesign
             go.SetActive(false);
         }
         var emptyTmp = empty.GetComponent<TMP_Text>();
-        emptyTmp.text = "No hay salas. Refresca o crea una.";
-        emptyTmp.fontSize = 20;
-        emptyTmp.color = TextSecondary;
+        UITheme.StyleBodyText(emptyTmp, "No hay salas. Refresca o crea una.");
         emptyTmp.alignment = TextAlignmentOptions.Center;
     }
 
@@ -202,69 +156,24 @@ public static class MenuUIRedesign
         foreach (var tmp in panel.GetComponentsInChildren<TMP_Text>(true))
         {
             if (tmp.GetComponentInParent<Button>() == null && tmp.fontSize >= 28)
-            {
-                tmp.text = "Crear sala";
-                tmp.fontSize = 36;
-                tmp.fontStyle = FontStyles.Bold;
-                tmp.color = TextPrimary;
-            }
+                UITheme.StyleTitleText(tmp, "Crear sala");
         }
 
         foreach (var input in panel.GetComponentsInChildren<TMP_InputField>(true))
         {
             var bg = input.transform.Find("Text Area")?.GetComponent<Image>();
-            if (bg != null) bg.color = InputBg;
+            if (bg != null) bg.color = UITheme.InputBg;
             var ph = input.placeholder as TMP_Text;
-            if (ph != null) { ph.text = "Nombre de la sala"; ph.color = TextSecondary; }
-        }
-
-        StyleButton(FindDeep(panel, "ButtonConfirmarHost"), "Crear partida", true);
-        StyleButton(FindDeep(panel, "ButtonVolver"), "Volver", false);
-    }
-
-    static Transform FindDeep(Transform root, string name)
-    {
-        if (root == null) return null;
-        if (root.name == name) return root;
-        foreach (Transform c in root)
-        {
-            var f = FindDeep(c, name);
-            if (f != null) return f;
-        }
-        return null;
-    }
-
-    static void StyleButton(Transform btn, string label, bool primary)
-    {
-        if (btn == null) return;
-        var img = btn.GetComponent<Image>();
-        if (img != null)
-        {
-            img.color = primary ? Accent : PanelSurface;
-            if (!primary)
+            if (ph != null)
             {
-                var outline = btn.GetComponent<Outline>();
-                if (outline == null) outline = btn.gameObject.AddComponent<Outline>();
-                outline.effectColor = Accent;
-                outline.effectDistance = new Vector2(2, -2);
+                UITheme.EnsureUniqueTextVisual(ph);
+                ph.text = "Nombre de la sala";
+                ph.color = UITheme.TextSecondary;
             }
         }
 
-        var colors = btn.GetComponent<Button>().colors;
-        colors.normalColor = primary ? Accent : PanelSurface;
-        colors.highlightedColor = Accent * 1.1f;
-        colors.pressedColor = AccentPressed;
-        colors.selectedColor = colors.highlightedColor;
-        btn.GetComponent<Button>().colors = colors;
-
-        var tmp = btn.GetComponentInChildren<TMP_Text>();
-        if (tmp != null)
-        {
-            if (!string.IsNullOrEmpty(label)) tmp.text = label;
-            tmp.color = primary ? TextPrimary : Accent;
-            tmp.fontSize = 22;
-            tmp.fontStyle = FontStyles.Bold;
-        }
+        UITheme.StyleButton(UITheme.FindDeep(panel, "ButtonConfirmarHost"), "Crear partida", true);
+        UITheme.StyleButton(UITheme.FindDeep(panel, "ButtonVolver"), "Volver", false);
     }
 
     static void WireSpawner(GameObject canvasMenu, Transform panelInicio, Transform panelBrowser, Transform panelCrear)
@@ -280,14 +189,15 @@ public static class MenuUIRedesign
 
         Transform content = null;
         if (panelBrowser != null)
-            content = panelBrowser.GetComponentInChildren<Transform>(true);
-        foreach (var t in panelBrowser != null ? panelBrowser.GetComponentsInChildren<Transform>(true) : System.Array.Empty<Transform>())
-            if (t.name == "Content") content = t;
+        {
+            foreach (var t in panelBrowser.GetComponentsInChildren<Transform>(true))
+                if (t.name == "Content") content = t;
+        }
 
         if (content != null)
             so.FindProperty("_roomListContent").objectReferenceValue = content;
 
-        var lobbys = panelBrowser != null ? FindDeep(panelBrowser, "Lobbys") : null;
+        var lobbys = panelBrowser != null ? UITheme.FindDeep(panelBrowser, "Lobbys") : null;
         if (lobbys != null)
             so.FindProperty("_roomListPanel").objectReferenceValue = lobbys.gameObject;
 

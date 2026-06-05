@@ -1,0 +1,258 @@
+{
+    "schemaVersion": 1,
+    "status": "completed",
+    "levels": [
+        {
+            "nivel": 1,
+            "status": "completed",
+            "questions": [
+                {
+                    "id": "N1_1_Fácil",
+                    "question": "¿Cuál es el tipo de dato utilizado para representar una cadena de caracteres en un ordenador?",
+                    "options": [
+                        "Un entero",
+                        "Una matriz",
+                        "Un struct",
+                        "Una cadena"
+                    ],
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Fácil",
+                    "puntaje": 10
+                },
+                {
+                    "id": "N1_2_Fácil",
+                    "question": "¿Cuál es el tipo de dato abstracto TDA que se utiliza para implementar estructuras dinámicas?",
+                    "options": [
+                        "TDA de cadena",
+                        "Punteros",
+                        "TDA de lista enlazada",
+                        "TDA de matriz"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Fácil",
+                    "puntaje": 10
+                },
+                {
+                    "id": "N1_3_Fácil",
+                    "question": "¿Cuál es el resultado del bucle en la línea 5 del algoritmo de recorrido de una lista enlazada?",
+                    "options": [
+                        "Se avanza hacia el siguiente nodo",
+                        "El puntero P se convierte en NULO",
+                        "La lista se vacía",
+                        "No se hace nada"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Fácil",
+                    "puntaje": 10
+                },
+                {
+                    "id": "N1_4_Media",
+                    "question": "¿Cuál es el paso inicial en la eliminación de un elemento en una lista enlazada?",
+                    "options": [
+                        "Libera el nodo que apunta SIG(P)",
+                        "Sigue el puntero al lugar que ocupa POS",
+                        "Libera el nodo que se elimina y sigue el puntero SIG(Q)",
+                        "Borra el elemento que apunta SIG(P)"
+                    ],
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N1_5_Media",
+                    "question": "¿Cuál es el resultado de ejecutar la funcion Pila vaciía (vaciía) cuando la pila está vaciªda?",
+                    "options": [
+                        "VACIªda cierto",
+                        "SI NO ESTA VACIªda FALSO",
+                        "FALSO",
+                        "NO SE VALORA"
+                    ],
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N1_6_Media",
+                    "question": "¿Qué pasa con el tiempo de ejecución cuando se implementa una cola utilizando dos elementos del tipo lista enlazada?",
+                    "options": [
+                        "El tiempo de ejecución es O(1) porque solo necesitamos acceder a los dos elementos",
+                        "O(n) debido a la complejidad de la búsqueda por intersección",
+                        "No existe cambio significativo, el tiempo de ejecución es O(V+E) en promedio",
+                        "La respuesta depende del tamaño de la cola, no hay una solución universal"
+                    ],
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                }
+            ]
+        },
+        {
+            "nivel": 2,
+            "status": "completed",
+            "questions": [
+                {
+                    "id": "N2_1_Fácil",
+                    "question": "¿Cuál es la notación algorítmica que representa el tiempo de ejecución de un algoritmo secuencial con n comparaciones?",
+                    "options": [
+                        "O( log n )",
+                        "O( n )",
+                        "O(n log n)",
+                        "O(log n)"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Fácil",
+                    "puntaje": 10
+                },
+                {
+                    "id": "N2_2_Media",
+                    "question": "¿Cuál es el tiempo complejo temporal de la algoritmo iterativo RECURSIVE-ACTIVITY-SELECTOR para resolver recurrences de forma recursiva?",
+                    "options": [
+                        "O(n^2)",
+                        "O(n log n)",
+                        "O(n log log n)",
+                        "O(n^3)"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N2_3_Media",
+                    "question": "¿Cuál es el tipo de estructura de datos que puede variar su tamaño y comportarse como una estructura dinámica, pero requiere definir un vector dimensionado con tamaño suficiente?",
+                    "options": [
+                        "Estructura lineal",
+                        "Lista contigua",
+                        "Pila",
+                        "Cola"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N2_4_Media",
+                    "question": "¿Cuál es el tipo de heap utilizado en la implementación de una cola con prioridad?",
+                    "options": [
+                        "Monticulo min",
+                        "Monticulo max",
+                        "Montículo binario",
+                        "Heap equilibrado"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N2_5_Media",
+                    "question": "¿Cuál es el recorrido in-orden de un árbol binario de búsqueda?",
+                    "options": [
+                        "Alternativa técnica A: in-orden, pre-orden y post-orden",
+                        "Alternativa técnica B: in-orden, pre-orden y pila",
+                        "Alternativa técnica C: in-orden, recorrido aleatorio y árbol binario",
+                        "Alternativa técnica D: in-orden, recorrido invertido y árbol binario"
+                    ],
+                    "correctAnswerIndex": 0,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N2_6_Difícil",
+                    "question": "¿En un árbol AVL balanceado, si el peso de la raíz es mayor que el peso del nodo más a la izquierda y el peso del nodo más derecho es menor que el peso del nodo más a la derecha, lo que se recomienda hacer con estos nodos?",
+                    "options": [
+                        "Rotar la raíz hacia la izquierda",
+                        "Rotar la raíz hacia la derecha",
+                        "No realizar ninguna acción",
+                        "Ajustar el peso de los nodos"
+                    ],
+                    "correctAnswerIndex": 0,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                }
+            ]
+        },
+        {
+            "nivel": 3,
+            "status": "completed",
+            "questions": [
+                {
+                    "id": "N3_1_Media",
+                    "question": "¿En un grafo vertice-arista dirigido ponderado, ¿cuál es el algoritmo de búsqueda más eficiente si la estructura se utiliza como una lista ordenada?",
+                    "options": [
+                        "Búsqueda secuencial",
+                        "Búsqueda binaria",
+                        "Árbol binario de búsqueda",
+                        "Búsqueda en profundidad"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Media",
+                    "puntaje": 20
+                },
+                {
+                    "id": "N3_2_Difícil",
+                    "question": "¿Cuál es la forma más eficiente de representar un grafo con una gran cantidad de vértices y aristas, considerando el tiempo de búsqueda en una lista enlazada?",
+                    "options": [
+                        "Matriz adyacente",
+                        "Lista enlazada",
+                        "Adyacencia directa",
+                        "Grafo no dirigido"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                },
+                {
+                    "id": "N3_3_Difícil",
+                    "question": "¿Cuál es el tiempo complejo de búsqueda en un árbol binario ordenado?",
+                    "options": [
+                        "O(1)",
+                        "O(log n)",
+                        "O(n)",
+                        "O(n log n)"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                },
+                {
+                    "id": "N3_4_Difícil",
+                    "question": "¿En un árbol binario de búsqueda, si se busca un valor que no está presente en el árbol y se llega a un nodo vacío, ¿qué ocurre con la estructura del árbol?",
+                    "options": [
+                        "El valor buscado es insertado en el lugar correcto del árbol.",
+                        "El valor buscado no es encontrado en el árbol.",
+                        "La estructura del árbol no cambia, pero se actualiza la información del nodo vacío.",
+                        "Se elimina el nodo vacío sin afectar la estructura del árbol."
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                },
+                {
+                    "id": "N3_5_Difícil",
+                    "question": "¿Considera un algoritmo de búsqueda A estrella con una heurística que utiliza el tiempo de busca binaria como métrica. ¿Cuál es la principal ventaja de utilizar esta heurística en comparación con la búsqueda binaria pura?",
+                    "options": [
+                        "Reducir significativamente el número de comparaciones necesarias para encontrar un elemento",
+                        "Mejorar la eficiencia del algoritmo en caso de búsquedas secuenciales",
+                        "Aumentar la complejidad computacional del algoritmo",
+                        "Permitir la implementación de una búsqueda secuencial en vector ordenado"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                },
+                {
+                    "id": "N3_6_Difícil",
+                    "question": "¿Cuál es el requisito para que una función de dispersión hash sea considerada perfecta en la búsqueda en tablas de hash?",
+                    "options": [
+                        "La cantidad de memoria accesible durante la búsqueda debe ser constante",
+                        "O(1) / memoria accesibles durante la búsqueda",
+                        "O(n log n) / tiempo de búsqueda",
+                        "O(mj) / tamaño del conjunto"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Difícil",
+                    "puntaje": 30
+                }
+            ]
+        }
+    ]
+}

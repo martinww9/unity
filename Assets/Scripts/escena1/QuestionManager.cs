@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Fusion;
 
@@ -26,14 +27,17 @@ public class QuestionManager : NetworkBehaviour
     private readonly Dictionary<int, int> _expectedCountByLevel = new Dictionary<int, int>();
     private readonly Dictionary<(int nivel, int qIndex), PartialQuestion> _partialQuestions = new Dictionary<(int, int), PartialQuestion>();
     private int _levelsReceived;
+    private bool _hostLoadStarted;
 
     public bool IsReady { get; private set; }
 
     private const string BASE_URL = "http://localhost:5000/api";
     private const string ENDPOINT_QUESTIONS_GENERATE = "/questions/generate";
     private const string ENDPOINT_QUESTIONS_STATUS = "/questions/status";
+    private const string ENDPOINT_QUESTIONS_ALL = "/questions/all";
     private const string ENDPOINT_QUESTIONS_LEVEL = "/questions/";
     private const string ENDPOINT_FEEDBACK = "/feedback";
+    private const string StaticQuestionsRelativePath = "rag/output/preguntas_estaticas.json";
     private const float PollIntervalSeconds = 3f;
 
     private class PartialQuestion
@@ -59,8 +63,37 @@ public class QuestionManager : NetworkBehaviour
 
     public override void Spawned()
     {
-        if (Object.HasStateAuthority)
-            StartCoroutine(CheckExistingQuestions());
+        TryStartHostQuestionLoad();
+        StartCoroutine(DelayedLobbyRefresh());
+    }
+
+    public override void FixedUpdateNetwork()
+    {
+        TryStartHostQuestionLoad();
+    }
+
+    public void EnsureHostQuestionsLoaded()
+    {
+        TryStartHostQuestionLoad();
+    }
+
+    private void TryStartHostQuestionLoad()
+    {
+        if (_hostLoadStarted) return;
+        if (Object == null || !Object.IsValid) return;
+        if (!Object.HasStateAuthority) return;
+
+        _hostLoadStarted = true;
+        StartCoroutine(CheckExistingQuestions());
+    }
+
+    private IEnumerator DelayedLobbyRefresh()
+    {
+        yield return null;
+        yield return null;
+        RefreshLobbyIfVisible();
+        if (TriviaUI.Instance != null)
+            TriviaUI.Instance.RefreshLobbyWhenReady();
     }
 
     public void RetryConnection()
@@ -75,6 +108,8 @@ public class QuestionManager : NetworkBehaviour
         {
             IsReady = false;
             _questionsByLevel.Clear();
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.RefreshHostButtonStates();
             StartCoroutine(GenerateAndDownloadQuestions());
         }
     }
@@ -109,12 +144,23 @@ public class QuestionManager : NetworkBehaviour
 
     private void MarkReadyIfComplete()
     {
-        if (!AllLevelsLoaded()) return;
+        if (!AllLevelsLoaded())
+        {
+            Debug.Log($"IA: MarkReadyIfComplete omitido — niveles en memoria={_questionsByLevel.Count}, IsReady={IsReady}");
+            return;
+        }
 
         IsReady = true;
         Debug.Log("Trivia sincronizada (3 niveles).");
         if (TriviaUI.Instance != null)
             TriviaUI.Instance.OnQuestionsReady();
+        RefreshLobbyIfVisible();
+    }
+
+    private static void RefreshLobbyIfVisible()
+    {
+        if (TriviaUI.Instance != null && TriviaUI.Instance.IsLobbyVisible())
+            TriviaUI.Instance.RefreshHostButtonStates();
     }
 
     private static byte EncodeDificultad(string dificultad)
@@ -340,6 +386,174 @@ public class QuestionManager : NetworkBehaviour
         }
     }
 
+    private bool TryParseQuestionsFile(string json, out QuestionsFile file)
+    {
+        file = null;
+        try
+        {
+            file = JsonUtility.FromJson<QuestionsFile>(json);
+            return file != null;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("IA: Error parseando JSON canónico de preguntas: " + e.Message);
+            return false;
+        }
+    }
+
+    private static bool ValidateQuestion(Question q, out string error)
+    {
+        error = null;
+
+        if (q == null)
+        {
+            error = "pregunta nula";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(q.id))
+        {
+            error = "id vacío";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(q.question))
+        {
+            error = $"pregunta {q.id} sin texto";
+            return false;
+        }
+
+        if (q.options == null || q.options.Length != 4)
+        {
+            error = $"pregunta {q.id} debe tener exactamente 4 opciones";
+            return false;
+        }
+
+        for (int i = 0; i < q.options.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(q.options[i]))
+            {
+                error = $"pregunta {q.id} tiene opción {i} vacía";
+                return false;
+            }
+        }
+
+        if (q.correctAnswerIndex < 0 || q.correctAnswerIndex > 3)
+        {
+            error = $"pregunta {q.id} tiene correctAnswerIndex fuera de rango";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(q.dificultad))
+        {
+            error = $"pregunta {q.id} sin dificultad";
+            return false;
+        }
+
+        if (q.puntaje <= 0)
+        {
+            error = $"pregunta {q.id} tiene puntaje inválido";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool ValidateQuestions(int level, Question[] questions, out string error)
+    {
+        error = null;
+
+        if (questions == null || questions.Length == 0)
+        {
+            error = $"nivel {level} sin preguntas";
+            return false;
+        }
+
+        for (int i = 0; i < questions.Length; i++)
+        {
+            if (!ValidateQuestion(questions[i], out error))
+            {
+                error = $"nivel {level}, índice {i}: {error}";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryBuildLevelsDictionary(QuestionsFile file, out Dictionary<int, Question[]> byLevel, out string error)
+    {
+        byLevel = new Dictionary<int, Question[]>();
+        error = null;
+
+        if (file == null)
+        {
+            error = "archivo nulo";
+            return false;
+        }
+
+        if (file.schemaVersion != 1)
+        {
+            error = $"schemaVersion no soportado ({file.schemaVersion})";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(file.status))
+        {
+            error = "status raíz vacío";
+            return false;
+        }
+
+        if (file.levels == null || file.levels.Length == 0)
+        {
+            error = "sin niveles";
+            return false;
+        }
+
+        foreach (var levelPool in file.levels)
+        {
+            if (levelPool == null)
+            {
+                error = "nivel nulo";
+                return false;
+            }
+
+            if (levelPool.nivel < 1 || levelPool.nivel > LevelCount)
+            {
+                error = $"nivel fuera de rango ({levelPool.nivel})";
+                return false;
+            }
+
+            if (byLevel.ContainsKey(levelPool.nivel))
+            {
+                error = $"nivel duplicado ({levelPool.nivel})";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(levelPool.status))
+            {
+                error = $"nivel {levelPool.nivel} sin status";
+                return false;
+            }
+
+            if (!ValidateQuestions(levelPool.nivel, levelPool.questions, out error))
+                return false;
+
+            byLevel[levelPool.nivel] = levelPool.questions;
+        }
+
+        foreach (int level in AllLevels)
+        {
+            if (!byLevel.ContainsKey(level))
+            {
+                error = $"falta nivel {level}";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private void SincronizarNivel(int nivel, Question[] questions)
     {
         if (questions == null || questions.Length == 0) return;
@@ -347,6 +561,22 @@ public class QuestionManager : NetworkBehaviour
         RPC_StartSyncLevel(nivel, questions.Length);
         for (int i = 0; i < questions.Length; i++)
             SendQuestionParts(nivel, i, questions[i]);
+    }
+
+    private void ApplyDownloadedLevelsLocally(Dictionary<int, Question[]> downloaded)
+    {
+        _incomingByLevel.Clear();
+        _completedByIndexByLevel.Clear();
+        _expectedCountByLevel.Clear();
+        _partialQuestions.Clear();
+        _questionsByLevel.Clear();
+
+        foreach (var kv in downloaded)
+            _questionsByLevel[kv.Key] = kv.Value;
+
+        _levelsReceived = LevelCount;
+        Debug.Log($"IA: Host aplicó localmente {downloaded.Count} niveles.");
+        MarkReadyIfComplete();
     }
 
     private void SincronizarTodosLosNiveles(Dictionary<int, Question[]> byLevel)
@@ -359,8 +589,88 @@ public class QuestionManager : NetworkBehaviour
         }
     }
 
+    public void LoadStaticQuestionsFromFile()
+    {
+        if (Object == null || !Object.IsValid || !Object.HasStateAuthority)
+        {
+            Debug.LogWarning("IA: Solo el host puede cargar preguntas desde JSON estático.");
+            return;
+        }
+
+        string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", StaticQuestionsRelativePath));
+        if (!File.Exists(path))
+        {
+            Debug.LogWarning($"IA: No se encontró el archivo de preguntas estáticas: {path}");
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.ShowGenerateButton();
+            return;
+        }
+
+        string json;
+        try
+        {
+            json = File.ReadAllText(path, Encoding.UTF8);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"IA: No se pudo leer {path}: {e.Message}");
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.ShowGenerateButton();
+            return;
+        }
+
+        if (!TryParseQuestionsFile(json, out QuestionsFile file))
+        {
+            Debug.LogWarning("IA: El JSON estático no usa el contrato canónico QuestionsFile.");
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.ShowGenerateButton();
+            return;
+        }
+
+        if (!TryBuildLevelsDictionary(file, out Dictionary<int, Question[]> byLevel, out string error))
+        {
+            Debug.LogWarning($"IA: JSON estático inválido: {error}");
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.ShowGenerateButton();
+            return;
+        }
+
+        ApplyDownloadedLevelsLocally(byLevel);
+        SincronizarTodosLosNiveles(byLevel);
+        RefreshLobbyIfVisible();
+        Debug.Log($"IA: Preguntas estáticas cargadas desde {path}");
+    }
+
     private IEnumerator DownloadAllLevels()
     {
+        using (UnityWebRequest allRequest = UnityWebRequest.Get(BASE_URL + ENDPOINT_QUESTIONS_ALL))
+        {
+            ApplyNgrokHeaders(allRequest);
+            yield return allRequest.SendWebRequest();
+
+            if (allRequest.result == UnityWebRequest.Result.Success &&
+                TryParseQuestionsFile(allRequest.downloadHandler.text, out QuestionsFile file) &&
+                TryBuildLevelsDictionary(file, out Dictionary<int, Question[]> allLevels, out string canonicalError))
+            {
+                Debug.Log("IA: Descargado contrato canónico de preguntas desde API.");
+                if (Object.HasStateAuthority)
+                    ApplyDownloadedLevelsLocally(allLevels);
+
+                SincronizarTodosLosNiveles(allLevels);
+                RefreshLobbyIfVisible();
+                yield break;
+            }
+
+            if (allRequest.result == UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning("IA: Contrato canónico inválido o incompleto. Usando fallback por nivel.");
+            }
+            else
+            {
+                Debug.LogWarning($"IA: /questions/all no disponible ({allRequest.error}). Usando fallback por nivel.");
+            }
+        }
+
         var downloaded = new Dictionary<int, Question[]>();
 
         foreach (int level in AllLevels)
@@ -373,26 +683,65 @@ public class QuestionManager : NetworkBehaviour
                 if (request.result != UnityWebRequest.Result.Success)
                 {
                     Debug.LogWarning($"IA: Error descargando nivel {level}: {request.error}");
+                    if (Object.HasStateAuthority && TriviaUI.Instance != null)
+                        TriviaUI.Instance.ShowGenerateButton();
                     yield break;
                 }
 
                 if (!TryParseLevelPool(request.downloadHandler.text, out LevelQuestionPool pool))
+                {
+                    string preview = request.downloadHandler.text;
+                    if (!string.IsNullOrEmpty(preview) && preview.Length > 120)
+                        preview = preview.Substring(0, 120);
+                    Debug.LogWarning($"IA: Respuesta inválida para nivel {level}. Preview={preview}");
+                    if (Object.HasStateAuthority && TriviaUI.Instance != null)
+                        TriviaUI.Instance.ShowGenerateButton();
                     yield break;
+                }
 
                 if (pool.questions == null || pool.questions.Length == 0)
+                {
+                    Debug.LogWarning($"IA: Nivel {level} sin preguntas. No se puede habilitar Iniciar Partida.");
+                    if (Object.HasStateAuthority && TriviaUI.Instance != null)
+                        TriviaUI.Instance.ShowGenerateButton();
                     yield break;
+                }
+
+                if (!ValidateQuestions(level, pool.questions, out string validationError))
+                {
+                    Debug.LogWarning($"IA: Nivel {level} inválido: {validationError}");
+                    if (Object.HasStateAuthority && TriviaUI.Instance != null)
+                        TriviaUI.Instance.ShowGenerateButton();
+                    yield break;
+                }
 
                 downloaded[level] = pool.questions;
             }
         }
 
         if (downloaded.Count == LevelCount)
+        {
+            Debug.Log($"IA: Descargados {downloaded.Count}/{LevelCount} niveles desde API.");
+            if (Object.HasStateAuthority)
+                ApplyDownloadedLevelsLocally(downloaded);
+
             SincronizarTodosLosNiveles(downloaded);
+        }
+        else
+        {
+            Debug.LogWarning($"IA: Descarga incompleta ({downloaded.Count}/{LevelCount} niveles).");
+            if (Object.HasStateAuthority && TriviaUI.Instance != null)
+                TriviaUI.Instance.ShowGenerateButton();
+        }
+
+        RefreshLobbyIfVisible();
     }
 
     IEnumerator CheckExistingQuestions()
     {
         Debug.Log("IA: Verificando preguntas existentes en el servidor...");
+
+        bool statusCompleted = false;
 
         using (UnityWebRequest statusRequest = UnityWebRequest.Get(BASE_URL + ENDPOINT_QUESTIONS_STATUS))
         {
@@ -410,15 +759,26 @@ public class QuestionManager : NetworkBehaviour
             }
 
             QuestionsStatusResponse status = JsonUtility.FromJson<QuestionsStatusResponse>(statusRequest.downloadHandler.text);
-            if (status == null || status.status != "completed")
+            statusCompleted = status != null && status.status == "completed";
+
+            if (!statusCompleted)
             {
-                Debug.Log($"IA: Preguntas no disponibles (status={status?.status}). Esperando generación.");
-                if (TriviaUI.Instance != null) TriviaUI.Instance.ShowGenerateButton();
+                Debug.Log($"IA: status global={status?.status}; intentando descarga directa por nivel...");
+                yield return DownloadAllLevels();
+                if (IsReady)
+                {
+                    RefreshLobbyIfVisible();
+                    yield break;
+                }
+
+                if (TriviaUI.Instance != null)
+                    TriviaUI.Instance.ShowGenerateButton();
                 yield break;
             }
         }
 
         yield return DownloadAllLevels();
+        RefreshLobbyIfVisible();
     }
 
     IEnumerator GenerateAndDownloadQuestions()
@@ -479,11 +839,19 @@ public class QuestionManager : NetworkBehaviour
             }
 
             yield return DownloadAllLevels();
-            finished = IsReady;
+
+            if (!IsReady && Object.HasStateAuthority)
+            {
+                Debug.LogError("IA: Descarga o sincronización incompleta en el host.");
+                if (TriviaUI.Instance != null)
+                    TriviaUI.Instance.ShowGenerateButton();
+            }
+
+            finished = true;
         }
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    [Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
     public void RPC_StartSyncAllLevels()
     {
         _incomingByLevel.Clear();
@@ -496,7 +864,7 @@ public class QuestionManager : NetworkBehaviour
         Debug.Log("IA: Iniciando recepción de preguntas por nivel...");
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    [Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
     public void RPC_StartSyncLevel(int nivel, int totalQuestions)
     {
         _incomingByLevel[nivel] = new List<Question>();
@@ -505,19 +873,19 @@ public class QuestionManager : NetworkBehaviour
         Debug.Log($"IA: Recibiendo nivel {nivel} ({totalQuestions} preguntas)...");
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    [Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
     public void RPC_SyncQuestionMeta(int nivel, int qIndex, int correct, int puntaje, byte dificultadCode)
     {
         ApplyQuestionMeta(nivel, qIndex, correct, puntaje, dificultadCode);
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    [Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
     public void RPC_SyncQuestionField(int nivel, int qIndex, int fieldId, string text)
     {
         ApplyQuestionField(nivel, qIndex, fieldId, text);
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    [Rpc(RpcSources.StateAuthority, RpcTargets.Proxies)]
     public void RPC_SyncQuestionFieldChunk(int nivel, int qIndex, int fieldId, int chunkIndex, int totalChunks, string text)
     {
         ApplyQuestionFieldChunk(nivel, qIndex, fieldId, chunkIndex, totalChunks, text);

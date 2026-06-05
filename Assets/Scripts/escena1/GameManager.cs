@@ -115,6 +115,6 @@ public class GameManager : NetworkBehaviour
         if (Runner != null)
             Runner.Shutdown();
 
-        SceneManager.LoadScene("UI");
+        SceneManager.LoadScene(SceneNames.MenuPrincipal);
     }
 }

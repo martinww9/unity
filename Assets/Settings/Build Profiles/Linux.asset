@@ -21,10 +21,10 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/Scenes/UI/UI.unity
+    m_path: Assets/Scenes/MenuPrincipalEscena/MenuPrincipal.unity
     m_guid: 5c336a88e65b9f17e8a6bfbebea9ff94
   - m_enabled: 1
-    m_path: Assets/Scenes/Game/Escena1.unity
+    m_path: Assets/Scenes/JuegoEscena/Juego.unity
     m_guid: 64b1e614646624de781cd1f550ac889e
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []

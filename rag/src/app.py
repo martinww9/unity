@@ -24,7 +24,11 @@ def inicializar_sistema_bg():
         rag_pipeline.cargar_o_crear_index()
         print("[4/4] Índice cargado. Sistema IA listo.")
         with state_lock:
-            ia_state["status"] = "idle"
+            if rag_pipeline.cargar_cache_preguntas_en_estado(ia_state):
+                ia_state["status"] = "completed"
+                print("[RAG] Caché de preguntas restaurada (3 niveles).")
+            else:
+                ia_state["status"] = "idle"
     except Exception as e:
         print(f"Error crítico al inicializar el índice: {e}")
         with state_lock:
@@ -32,16 +36,24 @@ def inicializar_sistema_bg():
 
 
 def _status_payload():
+    payload = rag_pipeline.build_questions_payload(ia_state["levels"])
     return {
-        "status": ia_state["status"],
+        "status": ia_state["status"] if ia_state["status"] in ("indexing", "generating") else payload["status"],
         "levels": {
-            str(nivel): {
-                "status": ia_state["levels"][nivel]["status"],
-                "count": len(ia_state["levels"][nivel]["questions"]),
+            str(level["nivel"]): {
+                "status": level["status"],
+                "count": len(level["questions"]),
             }
-            for nivel in [1, 2, 3]
+            for level in payload["levels"]
         },
     }
+
+
+def _questions_file_payload():
+    payload = rag_pipeline.build_questions_payload(ia_state["levels"])
+    if ia_state["status"] in ("indexing", "generating"):
+        payload["status"] = ia_state["status"]
+    return payload
 
 
 def _questions_for_level(nivel):
@@ -84,6 +96,12 @@ def run_generate_questions():
 def run_questions_status():
     with state_lock:
         return jsonify(_status_payload())
+
+
+@app.route("/api/questions/all", methods=["GET"])
+def run_get_all_questions():
+    with state_lock:
+        return jsonify(_questions_file_payload())
 
 
 @app.route("/api/questions/<int:nivel>", methods=["GET"])

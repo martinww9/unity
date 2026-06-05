@@ -3,16 +3,81 @@
     "questions": [
         {
             "id": "N2_1_Fácil",
-            "question": "¿Cuál es la principal diferencia entre una estructura lineal y una no lineal?",
+            "question": "¿Cuál es la notación algorítmica que representa el tiempo de ejecución de un algoritmo secuencial con n comparaciones?",
             "options": [
-                "Una estructura lineal es una en la que se puede recorrer de manera secuencial, mientras que una estructura no lineal permite visitar cada nodo múltiples veces.",
-                "Una estructura lineal es una en la que los nodos están relacionados de manera directa, mientras que una estructura no lineal tiene relaciones indirectas entre los nodos.",
-                "Una estructura lineal es una en la que se pueden insertar o eliminar elementos dinámicamente, mientras que una estructura no lineal requiere cambios más complejos.",
-                "Una estructura lineal es una en la que cada nodo tiene un valor único, mientras que una estructura no lineal puede tener valores repetidos."
+                "O( log n )",
+                "O( n )",
+                "O(n log n)",
+                "O(log n)"
             ],
             "correctAnswerIndex": 1,
             "dificultad": "Fácil",
             "puntaje": 10
+        },
+        {
+            "id": "N2_2_Media",
+            "question": "¿Cuál es el tiempo complejo temporal de la algoritmo iterativo RECURSIVE-ACTIVITY-SELECTOR para resolver recurrences de forma recursiva?",
+            "options": [
+                "O(n^2)",
+                "O(n log n)",
+                "O(n log log n)",
+                "O(n^3)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_3_Media",
+            "question": "¿Cuál es el tipo de estructura de datos que puede variar su tamaño y comportarse como una estructura dinámica, pero requiere definir un vector dimensionado con tamaño suficiente?",
+            "options": [
+                "Estructura lineal",
+                "Lista contigua",
+                "Pila",
+                "Cola"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_4_Media",
+            "question": "¿Cuál es el tipo de heap utilizado en la implementación de una cola con prioridad?",
+            "options": [
+                "Monticulo min",
+                "Monticulo max",
+                "Montículo binario",
+                "Heap equilibrado"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_5_Media",
+            "question": "¿Cuál es el recorrido in-orden de un árbol binario de búsqueda?",
+            "options": [
+                "Alternativa técnica A: in-orden, pre-orden y post-orden",
+                "Alternativa técnica B: in-orden, pre-orden y pila",
+                "Alternativa técnica C: in-orden, recorrido aleatorio y árbol binario",
+                "Alternativa técnica D: in-orden, recorrido invertido y árbol binario"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N2_6_Difícil",
+            "question": "¿En un árbol AVL balanceado, si el peso de la raíz es mayor que el peso del nodo más a la izquierda y el peso del nodo más derecho es menor que el peso del nodo más a la derecha, lo que se recomienda hacer con estos nodos?",
+            "options": [
+                "Rotar la raíz hacia la izquierda",
+                "Rotar la raíz hacia la derecha",
+                "No realizar ninguna acción",
+                "Ajustar el peso de los nodos"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Difícil",
+            "puntaje": 30
         }
     ]
 }

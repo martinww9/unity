@@ -3,25 +3,25 @@
     "questions": [
         {
             "id": "N1_1_Fácil",
-            "question": "¿Cuál es el campo que se utiliza para indicar la posición de memoria en la que se ha almacenado un nodo en una lista enlazada?",
+            "question": "¿Cuál es el tipo de dato utilizado para representar una cadena de caracteres en un ordenador?",
             "options": [
-                "INFORMACION",
-                "PUNTERO IZQUIERDO",
-                "PUNTERO DCHIO",
-                "NÚLLO"
+                "Un entero",
+                "Una matriz",
+                "Un struct",
+                "Una cadena"
             ],
-            "correctAnswerIndex": 2,
+            "correctAnswerIndex": 3,
             "dificultad": "Fácil",
             "puntaje": 10
         },
         {
             "id": "N1_2_Fácil",
-            "question": "¿Qué sucede con la lista enlazada después de ejecutar el algoritmo de eliminación del elemento siguiente al apuntado por P, utilizando un puntero auxiliar Q?",
+            "question": "¿Cuál es el tipo de dato abstracto TDA que se utiliza para implementar estructuras dinámicas?",
             "options": [
-                "La lista se convierte en una lista ordenada.",
-                "El nodo que se elimina queda fuera de la lista, pero los nodos libres se reutilizan.",
-                "La lista se vuelve vacía y todos los nodos se eliminan.",
-                "Los nodos que preceden al elemento a eliminar se unen entre sí."
+                "TDA de cadena",
+                "Punteros",
+                "TDA de lista enlazada",
+                "TDA de matriz"
             ],
             "correctAnswerIndex": 2,
             "dificultad": "Fácil",
@@ -29,16 +29,55 @@
         },
         {
             "id": "N1_3_Fácil",
-            "question": "En una lista doblemente enlazada, si se desea insertar un nuevo elemento entre el elemento que apunta el puntero P y el siguiente al mismo, que instrucción debería ejecutarse?",
+            "question": "¿Cuál es el resultado del bucle en la línea 5 del algoritmo de recorrido de una lista enlazada?",
             "options": [
-                "A) Q SIG(P), SIG(P) NUEVO, SIG(NUEVO) Q",
-                "B) SIG(NUEVO) SIG(P), SIG(P) NUEVO",
-                "C) P NUEVO, SIG(P) NUEVO, SIG(NUEVO)",
-                "D) SIG(P) NUEVO, P NUEVO, SIG(NUEVO)"
+                "Se avanza hacia el siguiente nodo",
+                "El puntero P se convierte en NULO",
+                "La lista se vacía",
+                "No se hace nada"
             ],
-            "correctAnswerIndex": 0,
+            "correctAnswerIndex": 1,
             "dificultad": "Fácil",
             "puntaje": 10
+        },
+        {
+            "id": "N1_4_Media",
+            "question": "¿Cuál es el paso inicial en la eliminación de un elemento en una lista enlazada?",
+            "options": [
+                "Libera el nodo que apunta SIG(P)",
+                "Sigue el puntero al lugar que ocupa POS",
+                "Libera el nodo que se elimina y sigue el puntero SIG(Q)",
+                "Borra el elemento que apunta SIG(P)"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N1_5_Media",
+            "question": "¿Cuál es el resultado de ejecutar la funcion Pila vaciía (vaciía) cuando la pila está vaciªda?",
+            "options": [
+                "VACIªda cierto",
+                "SI NO ESTA VACIªda FALSO",
+                "FALSO",
+                "NO SE VALORA"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Media",
+            "puntaje": 20
+        },
+        {
+            "id": "N1_6_Media",
+            "question": "¿Qué pasa con el tiempo de ejecución cuando se implementa una cola utilizando dos elementos del tipo lista enlazada?",
+            "options": [
+                "El tiempo de ejecución es O(1) porque solo necesitamos acceder a los dos elementos",
+                "O(n) debido a la complejidad de la búsqueda por intersección",
+                "No existe cambio significativo, el tiempo de ejecución es O(V+E) en promedio",
+                "La respuesta depende del tamaño de la cola, no hay una solución universal"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Media",
+            "puntaje": 20
         }
     ]
 }
