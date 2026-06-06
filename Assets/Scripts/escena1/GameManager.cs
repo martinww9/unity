@@ -29,6 +29,17 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    public static bool HasFinishers
+    {
+        get
+        {
+            var gm = Instance;
+            if (gm == null || gm.Object == null || !gm.Object.IsValid)
+                return false;
+            return gm.FinishedPlayersCount > 0;
+        }
+    }
+
     public override void Spawned()
     {
         _changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);

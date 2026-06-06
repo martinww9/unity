@@ -75,6 +75,24 @@ public class JuegoUI : MonoBehaviour
         SetCanvasActive(_canvasPodio, true);
     }
 
+    public void ShowPodiumAlongsideGameplay()
+    {
+        SetCanvasActive(_canvasLobby, false);
+        SetCanvasActive(_canvasTimer, true);
+        SetCanvasActive(_canvasPreguntas, true);
+        SetCanvasActive(_canvasPodio, true);
+        SetCanvasActive(_canvasFinCarrera, false);
+    }
+
+    public void ShowFinCarreraWithPodium()
+    {
+        SetCanvasActive(_canvasLobby, false);
+        SetCanvasActive(_canvasTimer, false);
+        SetCanvasActive(_canvasPreguntas, false);
+        SetCanvasActive(_canvasFinCarrera, true);
+        SetCanvasActive(_canvasPodio, true);
+    }
+
     public void SetCanvasByName(string canvasName, bool active)
     {
         switch (canvasName)
