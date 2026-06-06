@@ -264,7 +264,7 @@ public class TriviaUI : MonoBehaviour
 
         ShowOnlyLobbyPanel();
 
-        UpdatePlayerList(runner);
+        RefreshPlayerList(runner);
 
         _lobbyRunner = runner;
 
@@ -346,7 +346,7 @@ public class TriviaUI : MonoBehaviour
         if (btnText != null) btnText.text = label;
     }
 
-    private void UpdatePlayerList(NetworkRunner runner)
+    public void RefreshPlayerList(NetworkRunner runner)
     {
         if (_playerListContainer == null || _playerEntryPrefab == null) return;
 

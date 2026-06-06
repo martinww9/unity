@@ -15,7 +15,8 @@ public class Player : NetworkBehaviour
     [Networked] public int PlayerRank { get; set; }
     [Networked] public int RespuestasCorrectas { get; set; }
     [Networked] public int PuntajeObtenido { get; set; }
-    [Networked] public NetworkString<_32> DisplayName { get; set; }
+    [Networked, OnChangedRender(nameof(OnDisplayNameChanged))]
+    public NetworkString<_32> DisplayName { get; set; }
     [Networked] private float _yaw { get; set; }
     [Networked] private float _pitch { get; set; }
     [Networked] private bool NetAnimWalking { get; set; }
@@ -84,7 +85,23 @@ public class Player : NetworkBehaviour
         EnsureNameTag();
 
         if (Object.HasInputAuthority)
-            RPC_SetDisplayName(PlayerNameStorage.Get());
+        {
+            string name = PlayerNameStorage.Get();
+            if (Object.HasStateAuthority)
+                DisplayName = PlayerNameStorage.Sanitize(name);
+            else
+                RPC_SetDisplayName(name);
+
+            OnDisplayNameChanged();
+        }
+    }
+
+    private void OnDisplayNameChanged()
+    {
+        if (TriviaUI.Instance == null || Runner == null || !Runner.IsRunning)
+            return;
+
+        TriviaUI.Instance.RefreshPlayerList(Runner);
     }
 
     private void EnsureNameTag()
@@ -101,7 +118,11 @@ public class Player : NetworkBehaviour
     {
         string name = DisplayName.ToString();
         if (string.IsNullOrWhiteSpace(name))
+        {
+            if (Object.HasInputAuthority)
+                return PlayerNameStorage.Get();
             return $"Jugador {Object.InputAuthority.PlayerId}";
+        }
         return name;
     }
 
@@ -117,6 +138,9 @@ public class Player : NetworkBehaviour
             if (player.Object.InputAuthority == playerRef)
                 return player.GetDisplayName();
         }
+
+        if (playerRef == runner.LocalPlayer)
+            return PlayerNameStorage.Get();
 
         return $"Jugador {playerRef.PlayerId}";
     }
