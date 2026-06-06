@@ -19,12 +19,16 @@ public static class JuegoUICanvasSetup
         var preguntas = GameObject.Find("CanvasPreguntas");
         var podio = GameObject.Find("CanvasPodio");
         var finCarrera = GameObject.Find("CanvasFinCarrera");
+        var stun = GameObject.Find("CanvasStun");
 
         if (lobby == null || timer == null || preguntas == null || podio == null || finCarrera == null)
         {
             Debug.LogError("JuegoUICanvasSetup: Faltan uno o más canvases raíz en la escena Juego.");
             return;
         }
+
+        if (stun == null)
+            Debug.LogWarning("JuegoUICanvasSetup: Falta CanvasStun. Ejecuta Tools > Juego > Setup Espiral Stun.");
 
         var triviaUi = Object.FindFirstObjectByType<TriviaUI>();
         if (triviaUi == null)
@@ -37,7 +41,7 @@ public static class JuegoUICanvasSetup
         if (juegoUi == null)
             juegoUi = triviaUi.gameObject.AddComponent<JuegoUI>();
 
-        juegoUi.EditorAssignCanvasRoots(lobby, timer, preguntas, podio, finCarrera);
+        juegoUi.EditorAssignCanvasRoots(lobby, timer, preguntas, podio, finCarrera, stun);
         juegoUi.ApplySortingOrders();
         juegoUi.HideAllCanvases();
 

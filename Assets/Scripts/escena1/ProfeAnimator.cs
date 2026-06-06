@@ -16,17 +16,21 @@ public class ProfeAnimator : NetworkBehaviour
     private const int PhaseWalkToCenter = 6;
     private const int PhaseDancing = 7;
     private const int PhaseTurnToDance = 8;
+    private const int PhaseArriveBlend = 9;
 
     [SerializeField] private Animator _animator;
     [SerializeField] private Transform _standPoint;
     [SerializeField] private Transform _danceCenter;
     [SerializeField] private Transform _chair;
     [SerializeField] private Transform _chairBackPoint;
+    [SerializeField] private Transform _movementPivot;
     [SerializeField] private float _standAnimDelay = 0.7f;
     [SerializeField] private float _chairMoveBackDistance = 0.5f;
     [SerializeField] private float _chairMoveSpeed = 0.8f;
     [SerializeField] private float _walkSpeed = 1.2f;
     [SerializeField] private float _arriveThreshold = 0.15f;
+    [SerializeField] private float _walkArriveThreshold = 0.05f;
+    [SerializeField] private float _arriveBlendDuration = 0.25f;
     [SerializeField] private float _rotationSpeed = 360f;
     [SerializeField] private float _walkAlignAngle = 15f;
     [SerializeField] private bool _debug;
@@ -47,12 +51,20 @@ public class ProfeAnimator : NetworkBehaviour
     private float _floorY;
     private float _chairFloorY;
     private int _debugTickCounter;
+    private int _pendingArrivePhase;
     private string _walkTargetLabel = "destino";
 
     private void Awake()
     {
         if (_animator == null)
             _animator = GetComponent<Animator>();
+
+        if (_movementPivot == null)
+        {
+            var feet = transform.Find("FeetAnchor");
+            if (feet != null)
+                _movementPivot = feet;
+        }
 
         if (_standPoint == null)
         {
@@ -80,7 +92,7 @@ public class ProfeAnimator : NetworkBehaviour
 
     public override void Spawned()
     {
-        _floorY = transform.position.y;
+        RefreshFloorY();
 
         if (_chair != null)
         {
@@ -149,6 +161,7 @@ public class ProfeAnimator : NetworkBehaviour
 
         if (targetStage == StageStanding)
         {
+            RefreshFloorY();
             CacheStandTarget();
             CacheChairTarget();
             DebugLogMarkerAlignment(_standPoint, "StandPoint");
@@ -180,6 +193,10 @@ public class ProfeAnimator : NetworkBehaviour
             case PhaseWalkToStand:
                 TickWalkPhase(PhaseStandIdle, "StandPoint");
                 break;
+            case PhaseArriveBlend:
+                if (TickArriveBlend())
+                    MovePhase = _pendingArrivePhase;
+                break;
         }
     }
 
@@ -194,6 +211,10 @@ public class ProfeAnimator : NetworkBehaviour
             case PhaseWalkToCenter:
                 TickWalkPhase(PhaseDancing, "DancePoint");
                 break;
+            case PhaseArriveBlend:
+                if (TickArriveBlend())
+                    MovePhase = _pendingArrivePhase;
+                break;
         }
     }
 
@@ -201,14 +222,37 @@ public class ProfeAnimator : NetworkBehaviour
     {
         _debugTickCounter++;
         if (_debug && _debugTickCounter % 30 == 0)
-            DebugLog($"Caminando a {arriveLabel}. Distancia restante={GetDistanceToTarget():F2}m");
+            DebugLog($"Caminando a {arriveLabel}. Distancia pivot={GetDistanceToTarget():F3}m");
 
-        if (StepWalkTowards(_targetWorldPos, _targetWorldRot, _walkSpeed))
-        {
-            WalkAnimEnabled = false;
-            MovePhase = arrivePhase;
-            DebugLog($"Llegó a {arriveLabel}.");
-        }
+        if (StepWalkTowards(_targetWorldPos, _walkSpeed))
+            BeginArriveBlend(arrivePhase, arriveLabel);
+    }
+
+    private void BeginArriveBlend(int arrivePhase, string arriveLabel)
+    {
+        _pendingArrivePhase = arrivePhase;
+        MovePhase = PhaseArriveBlend;
+        PhaseTimer = TickTimer.CreateFromSeconds(Runner, _arriveBlendDuration);
+        DebugLog($"Iniciando blend de llegada a {arriveLabel}. Distancia pivot={GetDistanceToTarget():F3}m");
+    }
+
+    private bool TickArriveBlend()
+    {
+        float duration = Mathf.Max(_arriveBlendDuration, 0.001f);
+        float t = 1f - (PhaseTimer.RemainingTime(Runner) ?? 0f) / duration;
+        Vector3 target = FlatAtY(_targetWorldPos, _floorY);
+
+        // Snap position first; rotation is blended with pivot pinned to avoid orbiting.
+        SetPivotWorldPos(target);
+        ApplyRotationKeepingPivot(target, Quaternion.Slerp(_lockedWalkRotation, _targetWorldRot, Mathf.Clamp01(t)));
+
+        if (!PhaseTimer.Expired(Runner))
+            return false;
+
+        ApplyRotationKeepingPivot(target, _targetWorldRot);
+        WalkAnimEnabled = false;
+        DebugLog($"Blend completado. Distancia pivot final={GetDistanceToTarget():F3}m");
+        return true;
     }
 
     private void BeginChairBackPhase()
@@ -227,23 +271,25 @@ public class ProfeAnimator : NetworkBehaviour
 
     private void BeginWalkToStandPhase()
     {
+        RefreshFloorY();
         CacheStandTarget();
         _walkTargetLabel = "StandPoint";
         _debugTickCounter = 0;
         MovePhase = PhaseTurnToStand;
         WalkAnimEnabled = false;
-        DebugLog($"Iniciando giro hacia StandPoint. Distancia={GetDistanceToTarget():F2}m");
+        DebugLog($"Iniciando giro hacia StandPoint. Distancia pivot={GetDistanceToTarget():F2}m");
     }
 
     private void BeginWalkToDancePhase()
     {
+        RefreshFloorY();
         CacheDanceTarget();
         DebugLogMarkerAlignment(_danceCenter, "DancePoint");
         _walkTargetLabel = "DancePoint";
         _debugTickCounter = 0;
         MovePhase = PhaseTurnToDance;
         WalkAnimEnabled = false;
-        DebugLog($"Iniciando giro hacia DancePoint. Distancia={GetDistanceToTarget():F2}m");
+        DebugLog($"Iniciando giro hacia DancePoint. Distancia pivot={GetDistanceToTarget():F2}m");
     }
 
     private void CompleteTurnAndStartWalk(int walkPhase)
@@ -252,7 +298,7 @@ public class ProfeAnimator : NetworkBehaviour
         _lockedWalkRotation = delta.sqrMagnitude > 0.001f
             ? Quaternion.LookRotation(delta.normalized, Vector3.up)
             : transform.rotation;
-        transform.rotation = _lockedWalkRotation;
+        ApplyRotationKeepingPivot(GetPivotWorldPos(), _lockedWalkRotation);
         WalkAnimEnabled = true;
         MovePhase = walkPhase;
         _debugTickCounter = 0;
@@ -260,7 +306,38 @@ public class ProfeAnimator : NetworkBehaviour
         float dot = delta.sqrMagnitude > 0.001f
             ? Vector3.Dot(transform.forward, delta.normalized)
             : 1f;
-        DebugLog($"Giro completo. Caminando a {_walkTargetLabel}. Distancia={delta.magnitude:F2}m, dot={dot:F2}");
+        DebugLog($"Giro completo. Caminando a {_walkTargetLabel}. Distancia pivot={delta.magnitude:F2}m, dot={dot:F2}");
+    }
+
+    private void RefreshFloorY()
+    {
+        _floorY = GetPivotWorldPos().y;
+    }
+
+    private Vector3 GetPivotWorldPos()
+    {
+        if (_movementPivot != null)
+            return _movementPivot.position;
+        return transform.position;
+    }
+
+    private void SetPivotWorldPos(Vector3 feetWorldPos)
+    {
+        if (_movementPivot == null || _movementPivot == transform)
+        {
+            transform.position = new Vector3(feetWorldPos.x, feetWorldPos.y, feetWorldPos.z);
+            return;
+        }
+
+        Vector3 worldOffset = transform.rotation * _movementPivot.localPosition;
+        Vector3 rootPos = feetWorldPos - worldOffset;
+        transform.position = rootPos;
+    }
+
+    private void ApplyRotationKeepingPivot(Vector3 pivotWorldPos, Quaternion rotation)
+    {
+        transform.rotation = rotation;
+        SetPivotWorldPos(FlatAtY(pivotWorldPos, _floorY));
     }
 
     private void CacheChairTarget()
@@ -299,34 +376,31 @@ public class ProfeAnimator : NetworkBehaviour
     private bool StepTurnTowards(Vector3 worldPos)
     {
         Vector3 delta = GetFlatDeltaTo(worldPos);
-        if (delta.sqrMagnitude <= _arriveThreshold * _arriveThreshold)
+        if (delta.sqrMagnitude <= _walkArriveThreshold * _walkArriveThreshold)
             return true;
 
         float dt = Runner.DeltaTime;
         Quaternion faceTarget = Quaternion.LookRotation(delta.normalized, Vector3.up);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, faceTarget, _rotationSpeed * dt);
+        Vector3 pinnedPivot = FlatAtY(GetPivotWorldPos(), _floorY);
+        Quaternion nextRotation = Quaternion.RotateTowards(transform.rotation, faceTarget, _rotationSpeed * dt);
+        ApplyRotationKeepingPivot(pinnedPivot, nextRotation);
 
         return Vector3.Angle(transform.forward, delta.normalized) <= _walkAlignAngle;
     }
 
-    private bool StepWalkTowards(Vector3 worldPos, Quaternion worldRot, float speed)
+    private bool StepWalkTowards(Vector3 worldPos, float speed)
     {
         float dt = Runner.DeltaTime;
-        Vector3 current = FlatAtY(transform.position, _floorY);
+        Vector3 current = FlatAtY(GetPivotWorldPos(), _floorY);
         Vector3 target = FlatAtY(worldPos, _floorY);
         Vector3 delta = target - current;
 
-        if (delta.sqrMagnitude <= _arriveThreshold * _arriveThreshold)
-        {
-            transform.position = new Vector3(target.x, _floorY, target.z);
-            transform.rotation = worldRot;
+        if (delta.sqrMagnitude <= _walkArriveThreshold * _walkArriveThreshold)
             return true;
-        }
 
         WalkAnimEnabled = true;
-        transform.rotation = _lockedWalkRotation;
         Vector3 next = Vector3.MoveTowards(current, target, speed * dt);
-        transform.position = new Vector3(next.x, _floorY, next.z);
+        ApplyRotationKeepingPivot(new Vector3(next.x, _floorY, next.z), _lockedWalkRotation);
 
         return false;
     }
@@ -347,7 +421,7 @@ public class ProfeAnimator : NetworkBehaviour
 
     private Vector3 GetFlatDeltaTo(Vector3 worldPos)
     {
-        Vector3 current = FlatAtY(transform.position, _floorY);
+        Vector3 current = FlatAtY(GetPivotWorldPos(), _floorY);
         Vector3 target = FlatAtY(worldPos, _floorY);
         return target - current;
     }
@@ -372,7 +446,7 @@ public class ProfeAnimator : NetworkBehaviour
     {
         if (marker == null) return;
 
-        Vector3 toMarker = marker.position - transform.position;
+        Vector3 toMarker = marker.position - GetPivotWorldPos();
         toMarker.y = 0f;
         if (toMarker.sqrMagnitude < 0.001f) return;
 
@@ -403,18 +477,27 @@ public class ProfeAnimator : NetworkBehaviour
 
     private void DrawMovementGizmos()
     {
+        Vector3 pivotPos = _movementPivot != null ? _movementPivot.position : transform.position;
+
+        if (_movementPivot != null)
+        {
+            Gizmos.color = Color.white;
+            Gizmos.DrawWireSphere(pivotPos, 0.1f);
+            Gizmos.DrawLine(transform.position, pivotPos);
+        }
+
         if (_standPoint != null)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawLine(transform.position, _standPoint.position);
-            Gizmos.DrawWireSphere(_standPoint.position, 0.25f);
+            Gizmos.DrawLine(pivotPos, _standPoint.position);
+            Gizmos.DrawWireSphere(_standPoint.position, _walkArriveThreshold);
         }
 
         if (_danceCenter != null)
         {
             Gizmos.color = Color.magenta;
-            Gizmos.DrawLine(transform.position, _danceCenter.position);
-            Gizmos.DrawWireSphere(_danceCenter.position, 0.25f);
+            Gizmos.DrawLine(pivotPos, _danceCenter.position);
+            Gizmos.DrawWireSphere(_danceCenter.position, _walkArriveThreshold);
         }
 
         if (_chair != null)
@@ -430,7 +513,7 @@ public class ProfeAnimator : NetworkBehaviour
         if (_debug && _targetWorldPos != Vector3.zero)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(_targetWorldPos, _arriveThreshold);
+            Gizmos.DrawWireSphere(_targetWorldPos, _walkArriveThreshold);
         }
     }
 #endif
@@ -471,7 +554,7 @@ public class ProfeAnimator : NetworkBehaviour
 
         if (AnimStage == StageDancing)
         {
-            if (MovePhase == PhaseWalkToCenter)
+            if (MovePhase == PhaseWalkToCenter || MovePhase == PhaseArriveBlend)
                 SetAnimBools(false, true, false);
             else if (MovePhase >= PhaseDancing)
                 SetAnimBools(false, false, true);

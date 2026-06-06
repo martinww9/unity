@@ -32,6 +32,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     [SerializeField] private GameObject _panelBrowser;
 
     [Header("Referencias de Creación")]
+    [SerializeField] private TMP_InputField _inputNombreJugador;
     [SerializeField] private TMP_InputField _inputNombreSala;
 
     [Header("Referencias de Browser")]
@@ -414,11 +415,31 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         _inJuegoSession = false;
         SetJuegoGameUIVisible(false);
         OcultarTodosLosPaneles();
+        ResolvePlayerNameInput();
 
         if (_panelInicio != null)
             _panelInicio.SetActive(true);
 
+        PlayerNameStorage.Clear();
+        if (_inputNombreJugador != null)
+            _inputNombreJugador.text = "";
+
         SetMenuCanvasPriority(true);
+    }
+
+    private void ResolvePlayerNameInput()
+    {
+        if (_inputNombreJugador != null || _panelInicio == null)
+            return;
+
+        foreach (var input in _panelInicio.GetComponentsInChildren<TMP_InputField>(true))
+        {
+            if (input.gameObject.name == "InputFieldNombreJugador")
+            {
+                _inputNombreJugador = input;
+                return;
+            }
+        }
     }
 
     private void Update()
@@ -429,6 +450,10 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     
     public async void StartGame(GameMode mode, string roomName = "TestRoom")
     {
+        ResolvePlayerNameInput();
+        if (_inputNombreJugador != null)
+            PlayerNameStorage.Set(_inputNombreJugador.text);
+
         await ShutdownRunnerForGameTransitionAsync();
 
         var runner = GetOrCreateRunner();

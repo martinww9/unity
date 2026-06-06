@@ -15,6 +15,8 @@ public class Player : NetworkBehaviour
     [Networked] public int PlayerRank { get; set; }
     [Networked] public int RespuestasCorrectas { get; set; }
     [Networked] public int PuntajeObtenido { get; set; }
+    [Networked] public NetworkString<_32> DisplayName { get; set; }
+    [Networked] private float _yaw { get; set; }
     [Networked] private float _pitch { get; set; }
     [Networked] private bool NetAnimWalking { get; set; }
     [Networked] private bool NetAnimRunning { get; set; }
@@ -30,6 +32,7 @@ public class Player : NetworkBehaviour
 
     [Header("Configuración de Cámara")]
     [SerializeField] private Transform _cameraPivot;
+    [SerializeField] private CinemachineCamera _fpCamera;
     public float mouseSensitivity = 6f;
 
     public static Player Local;
@@ -41,6 +44,9 @@ public class Player : NetworkBehaviour
         _cc = GetComponent<NetworkCharacterController>();
         if (_animator == null)
             _animator = GetComponent<Animator>();
+
+        if (_fpCamera == null)
+            _fpCamera = GetComponentInChildren<CinemachineCamera>(true);
     }
 
     public override void Spawned()
@@ -48,33 +54,77 @@ public class Player : NetworkBehaviour
         ResolveGameManager();
         HideLegacyBlinkRig();
 
-        var vCams = GetComponentsInChildren<CinemachineCamera>(true);
+        if (Object.HasStateAuthority)
+        {
+            _yaw = transform.eulerAngles.y;
+            State = EPlayerState.Advancing;
+        }
 
         if (Object.HasInputAuthority)
         {
             Local = this;
-            foreach (var cam in vCams)
+            if (_fpCamera != null)
             {
-                cam.enabled = true;
+                _fpCamera.enabled = true;
                 if (_cameraPivot != null)
-                    cam.Follow = _cameraPivot;
+                    _fpCamera.Follow = _cameraPivot;
             }
         }
         else
         {
-            foreach (var cam in vCams)
-                cam.enabled = false;
-
-            Transform cameraHolder = transform.Find("CameraHolder");
-            if (cameraHolder != null) cameraHolder.gameObject.SetActive(false);
-            if (_cameraPivot != null) _cameraPivot.gameObject.SetActive(false);
+            if (_fpCamera != null)
+                _fpCamera.enabled = false;
+            if (_cameraPivot != null)
+                _cameraPivot.gameObject.SetActive(false);
         }
-
-        if (Object.HasStateAuthority)
-            State = EPlayerState.Advancing;
 
         if (_cc != null)
             _cc.rotationSpeed = 0f;
+
+        EnsureNameTag();
+
+        if (Object.HasInputAuthority)
+            RPC_SetDisplayName(PlayerNameStorage.Get());
+    }
+
+    private void EnsureNameTag()
+    {
+        if (GetComponentInChildren<PlayerNameTag>(true) != null)
+            return;
+
+        var nameTagGo = new GameObject("NameTag");
+        nameTagGo.transform.SetParent(transform, false);
+        nameTagGo.AddComponent<PlayerNameTag>();
+    }
+
+    public string GetDisplayName()
+    {
+        string name = DisplayName.ToString();
+        if (string.IsNullOrWhiteSpace(name))
+            return $"Jugador {Object.InputAuthority.PlayerId}";
+        return name;
+    }
+
+    public static string GetDisplayName(NetworkRunner runner, PlayerRef playerRef)
+    {
+        if (runner == null)
+            return $"Jugador {playerRef.PlayerId}";
+
+        foreach (var player in FindObjectsByType<Player>(FindObjectsSortMode.None))
+        {
+            if (player.Object == null || !player.Object.IsValid)
+                continue;
+            if (player.Object.InputAuthority == playerRef)
+                return player.GetDisplayName();
+        }
+
+        return $"Jugador {playerRef.PlayerId}";
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    private void RPC_SetDisplayName(string name)
+    {
+        DisplayName = PlayerNameStorage.Sanitize(name);
     }
 
     private void HideLegacyBlinkRig()
@@ -113,7 +163,11 @@ public class Player : NetworkBehaviour
 
         Transform spawn = LevelManager.Instance != null ? LevelManager.Instance.GetSpawnPoint(1) : null;
         if (spawn != null)
+        {
             _cc.Teleport(spawn.position, spawn.rotation);
+            _yaw = spawn.rotation.eulerAngles.y;
+            _pitch = 0f;
+        }
     }
 
     public override void FixedUpdateNetwork()
@@ -130,9 +184,7 @@ public class Player : NetworkBehaviour
             if (GetInput(out NetworkInputData lobbyData))
             {
                 HandleMovement(lobbyData);
-                transform.Rotate(0, lobbyData.lookRotationDeltaX * mouseSensitivity, 0);
-                _pitch -= lobbyData.lookRotationDeltaY * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -80f, 80f);
+                ApplyLookInput(lobbyData);
             }
             return;
         }
@@ -159,12 +211,24 @@ public class Player : NetworkBehaviour
             }
 
             if (State != EPlayerState.Responding)
-            {
-                transform.Rotate(0, data.lookRotationDeltaX * mouseSensitivity, 0);
-                _pitch -= data.lookRotationDeltaY * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch, -80f, 80f);
-            }
+                ApplyLookInput(data);
         }
+    }
+
+    private void ApplyLookInput(NetworkInputData data)
+    {
+        _yaw += data.lookRotationDeltaX * mouseSensitivity;
+        _pitch -= data.lookRotationDeltaY * mouseSensitivity;
+        _pitch = Mathf.Clamp(_pitch, -80f, 80f);
+        transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+    }
+
+    private void LateUpdate()
+    {
+        if (!Object.HasInputAuthority || _cameraPivot == null)
+            return;
+
+        _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
     }
 
     private void CheckLevelCycle()
@@ -303,7 +367,10 @@ public class Player : NetworkBehaviour
             int nextLevel = level + 1;
             Transform spawn = LevelManager.Instance != null ? LevelManager.Instance.GetSpawnPoint(nextLevel) : null;
             if (spawn != null)
+            {
                 _cc.Teleport(spawn.position, spawn.rotation);
+                _yaw = spawn.rotation.eulerAngles.y;
+            }
 
             CurrentLevel = nextLevel;
             LevelQuestionIndex = -1;
@@ -372,9 +439,6 @@ public class Player : NetworkBehaviour
 
     public override void Render()
     {
-        if (_cameraPivot != null)
-            _cameraPivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
-
         if (Object.HasInputAuthority)
         {
             ResolveGameManager();

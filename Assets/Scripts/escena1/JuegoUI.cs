@@ -10,12 +10,14 @@ public class JuegoUI : MonoBehaviour
     public const int SortLobby = 10;
     public const int SortTimer = 15;
     public const int SortPreguntas = 20;
+    public const int SortStun = 25;
     public const int SortFinCarrera = 30;
     public const int SortPodio = 40;
 
     [SerializeField] private GameObject _canvasLobby;
     [SerializeField] private GameObject _canvasTimer;
     [SerializeField] private GameObject _canvasPreguntas;
+    [SerializeField] private GameObject _canvasStun;
     [SerializeField] private GameObject _canvasPodio;
     [SerializeField] private GameObject _canvasFinCarrera;
 
@@ -23,6 +25,13 @@ public class JuegoUI : MonoBehaviour
     {
         Instance = this;
         HideAllCanvases();
+        EnsureCanvasStunActive();
+    }
+
+    private void EnsureCanvasStunActive()
+    {
+        if (_canvasStun != null)
+            _canvasStun.SetActive(true);
     }
 
     private void OnDestroy()
@@ -104,6 +113,7 @@ public class JuegoUI : MonoBehaviour
         ApplySort(_canvasLobby, SortLobby);
         ApplySort(_canvasTimer, SortTimer);
         ApplySort(_canvasPreguntas, SortPreguntas);
+        ApplySort(_canvasStun, SortStun);
         ApplySort(_canvasFinCarrera, SortFinCarrera);
         ApplySort(_canvasPodio, SortPodio);
     }
@@ -122,13 +132,16 @@ public class JuegoUI : MonoBehaviour
         GameObject timer,
         GameObject preguntas,
         GameObject podio,
-        GameObject finCarrera)
+        GameObject finCarrera,
+        GameObject stun = null)
     {
         _canvasLobby = lobby;
         _canvasTimer = timer;
         _canvasPreguntas = preguntas;
         _canvasPodio = podio;
         _canvasFinCarrera = finCarrera;
+        if (stun != null)
+            _canvasStun = stun;
     }
 #endif
 }

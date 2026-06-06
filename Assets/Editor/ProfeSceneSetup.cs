@@ -25,20 +25,36 @@ public static class ProfeSceneSetup
         var danceCenter = so.FindProperty("_danceCenter").objectReferenceValue as Transform;
         var chair = so.FindProperty("_chair").objectReferenceValue as Transform;
         var chairBackPoint = so.FindProperty("_chairBackPoint").objectReferenceValue as Transform;
+        var movementPivot = GetMovementPivot(so, profe);
 
         Debug.Log("=== ProfeSceneSetup: validación ===", profe);
+
+        if (movementPivot == null)
+            Debug.LogWarning("FeetAnchor / _movementPivot no asignado. Usa 'Asignar FeetAnchor existente' o crea un empty bajo los pies del modelo.", profe);
+        else
+            Debug.Log($"Movement pivot: '{movementPivot.name}' en {movementPivot.position} (local {movementPivot.localPosition}).", movementPivot);
 
         if (standPoint == null)
             Debug.LogWarning("StandPoint no asignado en ProfeAnimator.", profe);
         else
-            LogMarkerAlignment(profe.transform, standPoint, "StandPoint");
+        {
+            LogMarkerAlignment(profe.transform, standPoint, "StandPoint (desde root)");
+            if (movementPivot != null)
+                LogPivotDistance(movementPivot, standPoint, "StandPoint");
+        }
 
         if (danceCenter == null)
             Debug.LogWarning("DancePoint no asignado en ProfeAnimator.", profe);
-        else if (standPoint != null)
-            LogMarkerAlignment(standPoint, danceCenter, "DancePoint (desde StandPoint)");
         else
-            LogMarkerAlignment(profe.transform, danceCenter, "DancePoint");
+        {
+            if (standPoint != null)
+                LogMarkerAlignment(standPoint, danceCenter, "DancePoint (desde StandPoint)");
+            else
+                LogMarkerAlignment(profe.transform, danceCenter, "DancePoint");
+
+            if (movementPivot != null)
+                LogPivotDistance(movementPivot, danceCenter, "DancePoint");
+        }
 
         if (chair == null)
             Debug.LogWarning("Chair no asignada en ProfeAnimator.", profe);
@@ -53,8 +69,11 @@ public static class ProfeSceneSetup
             Debug.Log("ChairBackPoint no asignado; se usará -chair.forward * distancia.", profe);
 
         float arriveThreshold = so.FindProperty("_arriveThreshold").floatValue;
+        float walkArriveThreshold = so.FindProperty("_walkArriveThreshold").floatValue;
         if (arriveThreshold < 0.15f)
             Debug.LogWarning($"_arriveThreshold={arriveThreshold} (recomendado 0.15). Usa '{MenuRoot}Aplicar valores recomendados'.", profe);
+        if (walkArriveThreshold > 0.05f)
+            Debug.LogWarning($"_walkArriveThreshold={walkArriveThreshold} (recomendado 0.05). Usa '{MenuRoot}Aplicar valores recomendados'.", profe);
 
         var triggers = Object.FindObjectsByType<ProfeBarrierTrigger>(FindObjectsSortMode.None);
         Debug.Log($"Triggers encontrados: {triggers.Length}", profe);
@@ -150,6 +169,34 @@ public static class ProfeSceneSetup
         Debug.Log($"DancePoint colocado en {newPos} (dot desde {origin.name}={dot:F2}). Guarda la escena (Ctrl+S).", danceCenter);
     }
 
+    [MenuItem(MenuRoot + "Asignar FeetAnchor existente")]
+    public static void AssignFeetAnchor()
+    {
+        var profe = Object.FindFirstObjectByType<ProfeAnimator>();
+        if (profe == null)
+        {
+            Debug.LogError("ProfeSceneSetup: No se encontró ProfeAnimator en la escena activa.");
+            return;
+        }
+
+        var feet = profe.transform.Find("FeetAnchor");
+        if (feet == null)
+        {
+            Debug.LogError("ProfeSceneSetup: No se encontró hijo 'FeetAnchor' bajo Profe. Créalo bajo los pies del modelo.", profe);
+            return;
+        }
+
+        var so = new SerializedObject(profe);
+        Undo.RecordObject(profe, "Assign FeetAnchor");
+        so.FindProperty("_movementPivot").objectReferenceValue = feet;
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(profe);
+        EditorSceneManager.MarkSceneDirty(profe.gameObject.scene);
+
+        Selection.activeGameObject = feet.gameObject;
+        Debug.Log($"FeetAnchor asignado a _movementPivot (local {feet.localPosition}). Guarda la escena (Ctrl+S).", profe);
+    }
+
     [MenuItem(MenuRoot + "Aplicar valores recomendados")]
     public static void ApplyRecommendedValues()
     {
@@ -163,12 +210,13 @@ public static class ProfeSceneSetup
         var so = new SerializedObject(profe);
         Undo.RecordObject(profe, "Apply Profe Recommended Values");
         so.FindProperty("_arriveThreshold").floatValue = 0.15f;
+        so.FindProperty("_walkArriveThreshold").floatValue = 0.05f;
         so.FindProperty("_walkAlignAngle").floatValue = 30f;
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(profe);
         EditorSceneManager.MarkSceneDirty(profe.gameObject.scene);
 
-        Debug.Log("ProfeAnimator: _arriveThreshold=0.15, _walkAlignAngle=30. Guarda la escena (Ctrl+S).", profe);
+        Debug.Log("ProfeAnimator: _arriveThreshold=0.15, _walkArriveThreshold=0.05, _walkAlignAngle=30. Guarda la escena (Ctrl+S).", profe);
     }
 
     [MenuItem(MenuRoot + "Quitar Static de silla del Profe")]
@@ -201,6 +249,26 @@ public static class ProfeSceneSetup
         EditorSceneManager.MarkSceneDirty(chair.gameObject.scene);
 
         Debug.Log($"Silla '{chair.name}': Static desactivado. Guarda la escena (Ctrl+S).", chair);
+    }
+
+    static Transform GetMovementPivot(SerializedObject so, ProfeAnimator profe)
+    {
+        var pivot = so.FindProperty("_movementPivot").objectReferenceValue as Transform;
+        if (pivot != null)
+            return pivot;
+
+        return profe.transform.Find("FeetAnchor");
+    }
+
+    static void LogPivotDistance(Transform pivot, Transform marker, string label)
+    {
+        Vector3 delta = marker.position - pivot.position;
+        delta.y = 0f;
+        float dist = delta.magnitude;
+        if (dist < 0.05f)
+            Debug.Log($"{label}: distancia pivot→marcador = {dist:F3}m (OK, < 5 cm).", marker);
+        else
+            Debug.Log($"{label}: distancia pivot→marcador = {dist:F3}m. Ajusta el marcador o FeetAnchor para que marque la posición de los pies.", marker);
     }
 
     static void LogMarkerAlignment(Transform profeTransform, Transform marker, string label)

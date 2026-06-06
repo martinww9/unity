@@ -214,7 +214,7 @@ public class TriviaUI : MonoBehaviour
         {
             GameObject entry = Instantiate(_playerEntryPrefab, _playerListContainer);
             TMP_Text text = entry.GetComponent<TMP_Text>();
-            if (text != null) text.text = $"Jugador {player.PlayerId}";
+            if (text != null) text.text = Player.GetDisplayName(runner, player);
         }
     }
 
@@ -544,7 +544,7 @@ public class TriviaUI : MonoBehaviour
         foreach (var p in terminaron)
         {
             string tu = (Player.Local != null && p.Object.InputAuthority == Player.Local.Object.InputAuthority) ? " (TÚ)" : "";
-            contenido += $"{p.PlayerRank}º Lugar - Jugador {p.Object.InputAuthority.PlayerId}{tu}\n";
+            contenido += $"{p.PlayerRank}º Lugar - {p.GetDisplayName()}{tu}\n";
         }
 
         if (_textoPodio != null) _textoPodio.text = contenido;

@@ -111,12 +111,71 @@ public static class MenuUIRedesign
                 UITheme.StyleTitleText(tmp, "Trivia Estructuras de Datos");
                 tmp.fontSize = 42;
             }
-            else if (tmp.GetComponentInParent<Button>() == null)
+            else if (tmp.GetComponentInParent<Button>() == null && tmp.name != "LabelNombreJugador")
                 UITheme.StyleBodyText(tmp);
         }
 
+        EnsurePlayerNameInput(panel);
         UITheme.StyleButton(UITheme.FindDeep(panel, "Join_Button"), "Unirse a sala", true);
         UITheme.StyleButton(UITheme.FindDeep(panel, "Host_Button"), "Crear sala", false);
+    }
+
+    static void EnsurePlayerNameInput(Transform panel)
+    {
+        var label = panel.Find("LabelNombreJugador");
+        if (label == null)
+        {
+            var labelGo = new GameObject("LabelNombreJugador", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelGo.transform.SetParent(panel, false);
+            label = labelGo.transform;
+            var labelRt = labelGo.GetComponent<RectTransform>();
+            labelRt.sizeDelta = new Vector2(380f, 28f);
+        }
+        UITheme.StyleBodyText(label.GetComponent<TMP_Text>(), "Tu nombre");
+
+        var input = panel.Find("InputFieldNombreJugador");
+        if (input == null)
+        {
+            var template = UITheme.FindDeep(panel, "InputField (TMP)");
+            if (template == null)
+            {
+                var crearPanel = FindChild(panel.parent, "PanelCrearSala");
+                if (crearPanel != null)
+                    template = UITheme.FindDeep(crearPanel, "InputField (TMP)");
+            }
+
+            if (template != null)
+            {
+                var clone = Object.Instantiate(template.gameObject, panel, false);
+                clone.name = "InputFieldNombreJugador";
+                input = clone.transform;
+            }
+            else
+            {
+                var inputGo = new GameObject("InputFieldNombreJugador", typeof(RectTransform), typeof(TMP_InputField));
+                inputGo.transform.SetParent(panel, false);
+                input = inputGo.transform;
+            }
+        }
+
+        var inputRt = input as RectTransform;
+        if (inputRt != null)
+            inputRt.sizeDelta = new Vector2(380f, 48f);
+
+        var inputField = input.GetComponent<TMP_InputField>();
+        if (inputField != null)
+        {
+            inputField.characterLimit = 32;
+            var bg = input.Find("Text Area")?.GetComponent<Image>();
+            if (bg != null) bg.color = UITheme.InputBg;
+            var ph = inputField.placeholder as TMP_Text;
+            if (ph != null)
+            {
+                UITheme.EnsureUniqueTextVisual(ph);
+                ph.text = "Escribe tu nombre";
+                ph.color = UITheme.TextSecondary;
+            }
+        }
     }
 
     static void StylePanelBrowser(Transform panel)
@@ -200,6 +259,13 @@ public static class MenuUIRedesign
         var lobbys = panelBrowser != null ? UITheme.FindDeep(panelBrowser, "Lobbys") : null;
         if (lobbys != null)
             so.FindProperty("_roomListPanel").objectReferenceValue = lobbys.gameObject;
+
+        if (panelInicio != null)
+        {
+            var playerNameInput = UITheme.FindDeep(panelInicio, "InputFieldNombreJugador");
+            if (playerNameInput != null)
+                so.FindProperty("_inputNombreJugador").objectReferenceValue = playerNameInput.GetComponent<TMP_InputField>();
+        }
 
         so.ApplyModifiedPropertiesWithoutUndo();
     }
