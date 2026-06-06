@@ -315,11 +315,16 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
         {
             if (existing.TryGetComponent<NetworkCharacterController>(out var cc))
                 cc.Teleport(spawnPosition, spawnRotation);
+            if (existing.TryGetComponent<Player>(out var existingPlayer))
+                existingPlayer.StabilizeCharacterPhysics();
             return;
         }
 
         NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, spawnRotation, player);
         _spawnedCharacters[player] = networkPlayerObject;
+
+        if (networkPlayerObject.TryGetComponent<Player>(out var playerBehaviour))
+            playerBehaviour.StabilizeCharacterPhysics();
 
         if (QuestionManager.Instance != null && QuestionManager.Instance.IsReady)
             QuestionManager.Instance.SincronizarConNuevoJugador(player);

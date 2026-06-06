@@ -39,6 +39,7 @@ public class Player : NetworkBehaviour
     public static Player Local;
     private NetworkCharacterController _cc;
     private GameManager _gameManager;
+    private bool _pendingStabilize;
 
     private void Awake()
     {
@@ -48,6 +49,36 @@ public class Player : NetworkBehaviour
 
         if (_fpCamera == null)
             _fpCamera = GetComponentInChildren<CinemachineCamera>(true);
+
+        var controller = GetComponent<CharacterController>();
+        if (controller != null)
+        {
+            controller.stepOffset = 0.12f;
+            controller.skinWidth = 0.1f;
+        }
+    }
+
+    public void StabilizeCharacterPhysics()
+    {
+        if (!Object.HasStateAuthority || _cc == null)
+            return;
+
+        _cc.Velocity = Vector3.zero;
+
+        var controller = GetComponent<CharacterController>();
+        if (controller == null)
+            return;
+
+        float bottomOffset = controller.center.y - controller.height * 0.5f;
+        Vector3 rayOrigin = transform.position + Vector3.up * (controller.height * 0.5f + 0.25f);
+        float rayLength = controller.height + 1.5f;
+
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, rayLength, ~0, QueryTriggerInteraction.Ignore))
+        {
+            float groundedY = hit.point.y - bottomOffset;
+            if (Mathf.Abs(transform.position.y - groundedY) > 0.02f)
+                _cc.Teleport(new Vector3(transform.position.x, groundedY, transform.position.z), transform.rotation);
+        }
     }
 
     public override void Spawned()
@@ -59,6 +90,8 @@ public class Player : NetworkBehaviour
         {
             _yaw = transform.eulerAngles.y;
             State = EPlayerState.Advancing;
+            _pendingStabilize = true;
+            StabilizeCharacterPhysics();
         }
 
         if (Object.HasInputAuthority)
@@ -191,11 +224,18 @@ public class Player : NetworkBehaviour
             _cc.Teleport(spawn.position, spawn.rotation);
             _yaw = spawn.rotation.eulerAngles.y;
             _pitch = 0f;
+            StabilizeCharacterPhysics();
         }
     }
 
     public override void FixedUpdateNetwork()
     {
+        if (_pendingStabilize && Object.HasStateAuthority)
+        {
+            StabilizeCharacterPhysics();
+            _pendingStabilize = false;
+        }
+
         ResolveGameManager();
 
         bool matchStarted = GameManager.IsMatchStartedSafe;
@@ -394,6 +434,7 @@ public class Player : NetworkBehaviour
             {
                 _cc.Teleport(spawn.position, spawn.rotation);
                 _yaw = spawn.rotation.eulerAngles.y;
+                StabilizeCharacterPhysics();
             }
 
             CurrentLevel = nextLevel;
