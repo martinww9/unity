@@ -50,6 +50,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     private bool _callbacksRegistered;
     private bool _inJuegoSession;
     private bool _suppressReturnToMenuOnShutdown;
+    private bool _isStartingGame;
 
     private static bool IsAltHeld()
     {
@@ -217,19 +218,15 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private NetworkRunner GetOrCreateRunner()
     {
+        if (_runner == null)
+            _runner = GetComponent<NetworkRunner>();
+
         if (_runner != null && _runner.IsRunning)
             return _runner;
 
-        foreach (var runner in GetComponents<NetworkRunner>())
-        {
-            if (runner != null)
-                Destroy(runner);
-        }
+        if (_runner == null)
+            _runner = gameObject.AddComponent<NetworkRunner>();
 
-        _runner = null;
-        _callbacksRegistered = false;
-
-        _runner = gameObject.AddComponent<NetworkRunner>();
         _runner.ProvideInput = true;
         RegisterRunnerCallbacks(_runner);
         return _runner;
@@ -244,6 +241,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private async Task ShutdownRunnerForGameTransitionAsync()
     {
+        if (_runner == null)
+            _runner = GetComponent<NetworkRunner>();
+
         if (_runner == null || !_runner.IsRunning)
             return;
 
@@ -256,10 +256,6 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
                 break;
             await Task.Delay(50);
         }
-
-        _runner = null;
-        _callbacksRegistered = false;
-        _suppressReturnToMenuOnShutdown = false;
     }
 
     private static void TryUnloadJuegoScene()
@@ -451,33 +447,45 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     
     public async void StartGame(GameMode mode, string roomName = "TestRoom")
     {
-        ResolvePlayerNameInput();
-        if (_inputNombreJugador != null)
-            PlayerNameStorage.Set(_inputNombreJugador.text);
+        if (_isStartingGame)
+            return;
 
-        await ShutdownRunnerForGameTransitionAsync();
-
-        var runner = GetOrCreateRunner();
-
-        DontDestroyOnLoad(gameObject);
-
-        SceneRef? sceneToLoad = null;
-        if (mode != GameMode.Client)
-            sceneToLoad = SceneRef.FromIndex(1);
-
-        var result = await runner.StartGame(new StartGameArgs()
+        _isStartingGame = true;
+        try
         {
-            GameMode = mode,
-            SessionName = roomName,
-            Scene = sceneToLoad,
-            SceneManager = GetOrAddSceneManager()
-        });
+            ResolvePlayerNameInput();
+            if (_inputNombreJugador != null)
+                PlayerNameStorage.Set(_inputNombreJugador.text);
 
-        if (!result.Ok)
+            await ShutdownRunnerForGameTransitionAsync();
+
+            var runner = GetOrCreateRunner();
+
+            DontDestroyOnLoad(gameObject);
+
+            SceneRef? sceneToLoad = null;
+            if (mode != GameMode.Client)
+                sceneToLoad = SceneRef.FromIndex(1);
+
+            var result = await runner.StartGame(new StartGameArgs()
+            {
+                GameMode = mode,
+                SessionName = roomName,
+                Scene = sceneToLoad,
+                SceneManager = GetOrAddSceneManager()
+            });
+
+            if (!result.Ok)
+            {
+                Debug.LogError($"Fallo al iniciar el juego: {result.ShutdownReason}");
+                DestroyRunnerComponents();
+                ReturnToMenuScene();
+            }
+        }
+        finally
         {
-            Debug.LogError($"Fallo al iniciar el juego: {result.ShutdownReason}");
-            DestroyRunnerComponents();
-            ReturnToMenuScene();
+            _suppressReturnToMenuOnShutdown = false;
+            _isStartingGame = false;
         }
     }
 
@@ -551,7 +559,9 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
         if (this == null) return;
-        DestroyRunnerComponents();
+
+        if (!_suppressReturnToMenuOnShutdown)
+            DestroyRunnerComponents();
 
         if (!_suppressReturnToMenuOnShutdown)
             ReturnToMenuScene();

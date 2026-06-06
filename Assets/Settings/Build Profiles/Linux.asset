@@ -17,15 +17,13 @@ MonoBehaviour:
   m_Subtarget: 2
   m_PlatformId: cb423bfea44b4d658edb8bc5d91a3024
   m_PlatformBuildProfile:
-    rid: 2912738515751796994
+    rid: 3349297274923778142
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
     m_path: Assets/Scenes/MenuPrincipalEscena/MenuPrincipal.unity
-    m_guid: 5c336a88e65b9f17e8a6bfbebea9ff94
   - m_enabled: 1
     m_path: Assets/Scenes/JuegoEscena/Juego.unity
-    m_guid: 64b1e614646624de781cd1f550ac889e
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
@@ -33,7 +31,7 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 2912738515751796994
+    - rid: 3349297274923778142
       type: {class: LinuxPlatformSettings, ns: UnityEditor.LinuxStandalone, asm: UnityEditor.LinuxStandalone.Extensions}
       data:
         m_Development: 0

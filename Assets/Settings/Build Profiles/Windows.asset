@@ -10,16 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 15003, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: Linux 1
+  m_Name: Windows
   m_EditorClassIdentifier: UnityEditor.dll::UnityEditor.Build.Profile.BuildProfile
   m_AssetVersion: 1
-  m_BuildTarget: 24
+  m_BuildTarget: 19
   m_Subtarget: 2
-  m_PlatformId: cb423bfea44b4d658edb8bc5d91a3024
+  m_PlatformId: 4e3c793746204150860bf175a9a41a05
   m_PlatformBuildProfile:
-    rid: 3766984351597986049
-  m_OverrideGlobalSceneList: 0
-  m_Scenes: []
+    rid: 3349297274923778141
+  m_OverrideGlobalSceneList: 1
+  m_Scenes:
+  - m_enabled: 1
+    m_path: Assets/Scenes/MenuPrincipalEscena/MenuPrincipal.unity
+  - m_enabled: 1
+    m_path: Assets/Scenes/JuegoEscena/Juego.unity
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
@@ -27,10 +31,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 3766984351597986049
-      type: {class: LinuxPlatformSettings, ns: UnityEditor.LinuxStandalone, asm: UnityEditor.LinuxStandalone.Extensions}
+    - rid: 3349297274923778141
+      type: {class: WindowsPlatformSettings, ns: UnityEditor.WindowsStandalone, asm: UnityEditor.WindowsStandalone.Extensions}
       data:
-        m_Development: 1
+        m_Development: 0
         m_ConnectProfiler: 0
         m_BuildWithDeepProfilingSupport: 0
         m_AllowDebugging: 0
@@ -44,10 +48,9 @@ MonoBehaviour:
         m_InsightsSettingsContainer:
           m_BuildProfileEngineDiagnosticsState: 2
         m_AdaptivePerformanceEnabled: 0
+        m_WindowsBuildAndRunDeployTarget: 0
         m_Architecture: 0
-        m_RemoteDeviceSectionFoldoutOpen: 0
-        m_DeployTarget: 0
-        m_RemoteDeviceAddress: 
-        m_RemoteDeviceUsername: 
-        m_RemoteDeviceExports: 
-        m_PathOnRemoteDevice: 
+        m_CreateSolution: 0
+        m_CopyPDBFiles: 0
+        m_WindowsDevicePortalAddress: 
+        m_WindowsDevicePortalUsername: 

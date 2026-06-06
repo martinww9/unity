@@ -33,7 +33,8 @@ public class QuestionManager : NetworkBehaviour
 
     public bool IsReady { get; private set; }
 
-    private const string BASE_URL = "http://localhost:5000/api";
+    //private const string BASE_URL = "http://localhost:5000/api";
+    private const string BASE_URL = "https://relocate-dismount-scorecard.ngrok-free.dev/api";
     private const string ENDPOINT_QUESTIONS_GENERATE = "/questions/generate";
     private const string ENDPOINT_QUESTIONS_STATUS = "/questions/status";
     private const string ENDPOINT_QUESTIONS_ALL = "/questions/all";
