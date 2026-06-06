@@ -3,81 +3,87 @@
     "questions": [
         {
             "id": "N1_1_Fácil",
-            "question": "¿Cuál es el tipo de dato utilizado para representar una cadena de caracteres en un ordenador?",
+            "question": "¿Cuál es el nombre del tipo de dato que se considera a un entero y una matriz de manera equivalente?",
             "options": [
-                "Un entero",
-                "Una matriz",
-                "Un struct",
-                "Una cadena"
-            ],
-            "correctAnswerIndex": 3,
-            "dificultad": "Fácil",
-            "puntaje": 10
-        },
-        {
-            "id": "N1_2_Fácil",
-            "question": "¿Cuál es el tipo de dato abstracto TDA que se utiliza para implementar estructuras dinámicas?",
-            "options": [
-                "TDA de cadena",
-                "Punteros",
-                "TDA de lista enlazada",
-                "TDA de matriz"
+                "Tipo de dato estructurado",
+                "Tipo de dato primitivo",
+                "Tipo de dato simple",
+                "Tipo de dato contiguo"
             ],
             "correctAnswerIndex": 2,
             "dificultad": "Fácil",
-            "puntaje": 10
+            "puntaje": 10,
+            "explanation": "La respuesta correcta es el tipo de dato simple porque se considera que un entero y una matriz pueden ser tratados como datos individuales."
+        },
+        {
+            "id": "N1_2_Fácil",
+            "question": "¿Cuál es el tipo de dato abstracto (TDA) que se utiliza en las estructuras de datos contiguas?",
+            "options": [
+                "TDA Punto",
+                "TDA Lista",
+                "TDA Vector",
+                "TDA Pila"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10,
+            "explanation": "Una estructura de datos contigua utiliza un TDA Pila para almacenar y manipular sus elementos."
         },
         {
             "id": "N1_3_Fácil",
-            "question": "¿Cuál es el resultado del bucle en la línea 5 del algoritmo de recorrido de una lista enlazada?",
+            "question": "¿Cuál es el efecto de asignar un valor a la variable X SIG(X) en una lista enlazada?",
             "options": [
-                "Se avanza hacia el siguiente nodo",
-                "El puntero P se convierte en NULO",
-                "La lista se vacía",
-                "No se hace nada"
+                "Se obtiene el nodo anterior de la lista.",
+                "Se obtiene el nodo siguiente de la lista.",
+                "Se avanza hacia el nodo siguiente de la lista y se almacena su valor.",
+                "No afecta el valor del puntero X."
             ],
-            "correctAnswerIndex": 1,
+            "correctAnswerIndex": 2,
             "dificultad": "Fácil",
-            "puntaje": 10
+            "puntaje": 10,
+            "explanation": "La asignación de X SIG(X) avanza hacia el nodo siguiente en la lista y se almacena su valor, permitiendo avanzar a lo largo de toda la lista."
         },
         {
             "id": "N1_4_Media",
-            "question": "¿Cuál es el paso inicial en la eliminación de un elemento en una lista enlazada?",
+            "question": "¿Cuando se inserta un nuevo nodo en una lista doblemente enlazada, ¿qué pasa con los nodos disponibles?",
             "options": [
-                "Libera el nodo que apunta SIG(P)",
-                "Sigue el puntero al lugar que ocupa POS",
-                "Libera el nodo que se elimina y sigue el puntero SIG(Q)",
-                "Borra el elemento que apunta SIG(P)"
+                "Se elimina el nodo que coincide con la información a ser ingresada",
+                "Se agrega al final de la lista",
+                "Se utiliza para guardar el nodo antes de ser insertado",
+                "No se afecta el conjunto de nodos disponibles"
             ],
-            "correctAnswerIndex": 3,
+            "correctAnswerIndex": 2,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es que los nodos disponibles se utilizan para guardar el nodo antes de ser insertado en la lista, para luego ser reutilizados si se eliminaran otros elementos."
         },
         {
             "id": "N1_5_Media",
-            "question": "¿Cuál es el resultado de ejecutar la funcion Pila vaciía (vaciía) cuando la pila está vaciªda?",
+            "question": "¿Cuál es el algoritmo que determina si una pila está vacía, y cómo se utiliza en los procedimientos PUSH y POP?",
             "options": [
-                "VACIªda cierto",
-                "SI NO ESTA VACIªda FALSO",
-                "FALSO",
-                "NO SE VALORA"
+                "Utiliza un puntero de la pila para comparar su valor con la longitud máxima del vector S",
+                "Verifica si el elemento en la cima de la pila es igual a 0",
+                "Compara el valor del puntero de la pila con la base de ésta",
+                "No se proporciona ninguna condición específica para determinar si una pila está vacía"
             ],
             "correctAnswerIndex": 3,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La pregunta requiere que el estudiante comprenda la implementación de pilas y la condición para determinar si una pila está vacía, lo cual se menciona en el contexto de estudio."
         },
         {
             "id": "N1_6_Media",
-            "question": "¿Qué pasa con el tiempo de ejecución cuando se implementa una cola utilizando dos elementos del tipo lista enlazada?",
+            "question": "¿Qué sucede con el orden de los elementos en una cola FIFO si se intenta eliminar un elemento más rápido que se agrega?",
             "options": [
-                "El tiempo de ejecución es O(1) porque solo necesitamos acceder a los dos elementos",
-                "O(n) debido a la complejidad de la búsqueda por intersección",
-                "No existe cambio significativo, el tiempo de ejecución es O(V+E) en promedio",
-                "La respuesta depende del tamaño de la cola, no hay una solución universal"
+                "Se mantienen ordenados",
+                "No se afectan los demás elementos",
+                "Se invertirán la posición",
+                "No se puede eliminar"
             ],
-            "correctAnswerIndex": 3,
+            "correctAnswerIndex": 2,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es 'Se invertirán la posición', porque en una cola FIFO, los elementos que se agregan están en el final y los que se eliminan están al principio. Si se intenta eliminar un elemento más rápido que se agrega, el orden de los elementos se invierte."
         }
     ]
 }

@@ -119,7 +119,12 @@ public static class JuegoUIRedesign
             UITheme.StylePanelCard(llegaste as RectTransform, 520f, 360f);
             var titulo = UITheme.FindDeep(llegaste, "Llegaste");
             if (titulo != null)
-                UITheme.StyleTitleText(titulo.GetComponent<TMP_Text>(), "¡Meta!");
+            {
+                var tituloTmp = titulo.GetComponent<TMP_Text>();
+                UITheme.StyleTitleText(tituloTmp, "¡Llegaste!");
+                if (tituloTmp != null)
+                    tituloTmp.text = "Esperando que termine el resto";
+            }
         }
 
         var feedbackPanel = UITheme.FindDeep(canvasRoot, "PanelFeedback");

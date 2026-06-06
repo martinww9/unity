@@ -2,8 +2,7 @@
 import os
 import json
 import threading
-from flask import Flask, jsonify, request
-from jsonschema import validate, ValidationError
+from flask import Flask, jsonify
 
 # Importamos las funciones aisladas de nuestro pipeline modular
 import rag_pipeline
@@ -12,7 +11,6 @@ app = Flask(__name__)
 
 # Control thread-safe de concurrencia y estado de la IA
 state_lock = threading.Lock()
-feedback_lock = threading.Lock()
 ia_state = {
     "status": "indexing", 
     "questions": []
@@ -75,25 +73,6 @@ def run_generate_questions():
     )
     thread.start()
     return jsonify({"status": "started", "message": "Proceso iterativo bilingüe iniciado."})
-
-@app.route('/api/generate-feedback', methods=['POST'])
-def run_generate_feedback():
-    datos = request.get_json() or {}
-    puntaje = datos.get("score", 0)
-    total = datos.get("total", 10)
-    
-    try:
-        with feedback_lock:
-            resultado_feedback = rag_pipeline.ejecutar_pipeline_feedback(puntaje, total)
-        
-        # Validar antes de devolver
-        validate(instance=resultado_feedback, schema=rag_pipeline.SCHEMA_FEEDBACK)
-        
-        return jsonify(resultado_feedback)
-    except ValidationError as e:
-        return jsonify({"error": f"Feedback con formato inválido: {e.message}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/get-all-questions', methods=['GET'])
 def run_get_all_questions():

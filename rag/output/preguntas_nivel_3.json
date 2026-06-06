@@ -3,81 +3,87 @@
     "questions": [
         {
             "id": "N3_1_Media",
-            "question": "¿En un grafo vertice-arista dirigido ponderado, ¿cuál es el algoritmo de búsqueda más eficiente si la estructura se utiliza como una lista ordenada?",
+            "question": "¿Cuál es el nombre técnico del algoritmo que busca un valor en un vector ordenado dividiendo a cada paso en dos partes igualmente grandes y comparando el valor buscado con el central?",
             "options": [
                 "Búsqueda secuencial",
                 "Búsqueda binaria",
-                "Árbol binario de búsqueda",
-                "Búsqueda en profundidad"
+                "Algoritmo de búsqueda exponencial",
+                "Búsqueda linear"
             ],
-            "correctAnswerIndex": 2,
+            "correctAnswerIndex": 1,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La búsqueda binaria es un algoritmo eficiente para buscar un valor en un vector ordenado, ya que divide a cada paso en dos partes igualmente grandes y compara el valor buscado con el central."
         },
         {
             "id": "N3_2_Difícil",
-            "question": "¿Cuál es la forma más eficiente de representar un grafo con una gran cantidad de vértices y aristas, considerando el tiempo de búsqueda en una lista enlazada?",
+            "question": "¿Cuál es el método de representación más eficiente para un grafo espeso, en comparación con una lista enlazada?",
             "options": [
-                "Matriz adyacente",
-                "Lista enlazada",
-                "Adyacencia directa",
-                "Grafo no dirigido"
+                "Representación de matriz",
+                "Representación de lista enlazada",
+                "Representación de lista circular",
+                "Representación de grafo no dirigido"
             ],
-            "correctAnswerIndex": 1,
+            "correctAnswerIndex": 0,
             "dificultad": "Difícil",
-            "puntaje": 30
+            "puntaje": 30,
+            "explanation": "La representación de matriz es más eficiente para un grafo espeso, ya que almacena la información de adyacencia de manera compacta y no requiere el uso de memoria dinámica como lo hace una lista enlazada."
         },
         {
             "id": "N3_3_Difícil",
-            "question": "¿Cuál es el tiempo complejo de búsqueda en un árbol binario ordenado?",
+            "question": "¿Cuál es el orden en el que se visitan los nodos durante un recorrido profundidad (DFS) en un árbol binario?",
             "options": [
-                "O(1)",
-                "O(log n)",
-                "O(n)",
-                "O(n log n)"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_4_Difícil",
-            "question": "¿En un árbol binario de búsqueda, si se busca un valor que no está presente en el árbol y se llega a un nodo vacío, ¿qué ocurre con la estructura del árbol?",
-            "options": [
-                "El valor buscado es insertado en el lugar correcto del árbol.",
-                "El valor buscado no es encontrado en el árbol.",
-                "La estructura del árbol no cambia, pero se actualiza la información del nodo vacío.",
-                "Se elimina el nodo vacío sin afectar la estructura del árbol."
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Difícil",
-            "puntaje": 30
-        },
-        {
-            "id": "N3_5_Difícil",
-            "question": "¿Considera un algoritmo de búsqueda A estrella con una heurística que utiliza el tiempo de busca binaria como métrica. ¿Cuál es la principal ventaja de utilizar esta heurística en comparación con la búsqueda binaria pura?",
-            "options": [
-                "Reducir significativamente el número de comparaciones necesarias para encontrar un elemento",
-                "Mejorar la eficiencia del algoritmo en caso de búsquedas secuenciales",
-                "Aumentar la complejidad computacional del algoritmo",
-                "Permitir la implementación de una búsqueda secuencial en vector ordenado"
+                "orden alfabético",
+                "orden de búsqueda",
+                "orden de profundidad",
+                "orden de ancho"
             ],
             "correctAnswerIndex": 2,
             "dificultad": "Difícil",
-            "puntaje": 30
+            "puntaje": 30,
+            "explanation": "La respuesta correcta es 'orden de profundidad' porque durante un recorrido DFS, se visitan los nodos de manera que se exploran primero aquellos con una profundidad más grande y luego los más pequeños."
         },
         {
-            "id": "N3_6_Difícil",
-            "question": "¿Cuál es el requisito para que una función de dispersión hash sea considerada perfecta en la búsqueda en tablas de hash?",
+            "id": "N3_4_Difícil",
+            "question": "¿Cuál es el paso inicial a realizar al introducir un nuevo nodo en un árbol binario de búsqueda?",
             "options": [
-                "La cantidad de memoria accesible durante la búsqueda debe ser constante",
-                "O(1) / memoria accesibles durante la búsqueda",
-                "O(n log n) / tiempo de búsqueda",
-                "O(mj) / tamaño del conjunto"
+                "Insertar el valor del nodo como nodo raíz",
+                "Comparar el valor del nuevo nodo con el raíz existente",
+                "Buscar un nodo con el mismo valor que el nuevo nodo y eliminarlo",
+                "Comprimir los valores del subárbol derecho hacia la izquierda"
             ],
             "correctAnswerIndex": 1,
             "dificultad": "Difícil",
-            "puntaje": 30
+            "puntaje": 30,
+            "explanation": "La comparación con el raíz existente permite determinar dónde insertar el nuevo nodo para mantener la propiedad del árbol binario de búsqueda."
+        },
+        {
+            "id": "N3_5_Difícil",
+            "question": "¿Cuál es el tiempo complejo del algoritmo de bùsca binaria en un vector ordenado?",
+            "options": [
+                "O(n)",
+                "O(log n)",
+                "O(n log n)",
+                "O(1)"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "La búsqueda binaria en un vector ordenado es más rápida debido a la disposición ordenada de los elementos, lo que permite reducir el número de comparaciones necesarias para encontrar un elemento específico."
+        },
+        {
+            "id": "N3_6_Difícil",
+            "question": "¿Cuál es el requisito fundamental para que un hash function sea considerada perfectamente dispersa?",
+            "options": [
+                "jU j m > 1",
+                "jU j m ≥ 2",
+                "jU j m ≤ 2",
+                "jU j m es indeterminado"
+            ],
+            "correctAnswerIndex": 0,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "La perfección en la dispersión de una función hash requiere que haya al menos dos claves con el mismo valor de hash, lo cual es garantizado cuando jU j m > 1."
         }
     ]
 }

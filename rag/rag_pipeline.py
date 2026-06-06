@@ -25,25 +25,15 @@ _idx = None
 SCHEMA_QUESTION = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "required": ["id", "question", "options", "correctAnswerIndex", "dificultad", "puntaje"],
+    "required": ["id", "question", "options", "correctAnswerIndex", "dificultad", "puntaje", "explanation"],
     "properties": {
         "id":                 { "type": "string" },
         "question":           { "type": "string" },
         "options":            { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "string" } },
         "correctAnswerIndex": { "type": "integer", "minimum": 0, "maximum": 3 },
         "dificultad":         { "type": "string" },
-        "puntaje":            { "type": "integer" }
-    }
-}
-
-SCHEMA_FEEDBACK = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["mensaje_general", "fortalezas", "areas_mejora"],
-    "properties": {
-        "mensaje_general":      { "type": "string" },
-        "fortalezas":           { "type": "array", "items": { "type": "string" } },
-        "areas_mejora":         { "type": "array", "items": { "type": "string" } },
+        "puntaje":            { "type": "integer" },
+        "explanation":        { "type": "string", "minLength": 1 },
     }
 }
 
@@ -249,6 +239,10 @@ def extraer_json(raw_text):
 def validar_pregunta(q):
     try:
         validate(instance=q, schema=SCHEMA_QUESTION)
+        explanation = str(q.get("explanation") or q.get("justificacion") or "").strip()
+        if not explanation:
+            print("    [SCHEMA] ✗ explanation vacía")
+            return False
         return True
     except ValidationError as e:
         print(f"    [SCHEMA] ✗ {e.message}")
@@ -314,9 +308,18 @@ FORMATO DE RESPUESTA:
 {
     "aprobada": true | false,
     "motivo": "explicación",
-    "pregunta_final": { ...mismo JSON... }
+    "pregunta_final": {
+        "id": "string",
+        "question": "¿Pregunta?",
+        "options": ["string", "string", "string", "string"],
+        "correctAnswerIndex": 0,
+        "dificultad": "string",
+        "puntaje": 10,
+        "explanation": "1-2 frases que justifiquen la alternativa correcta"
+    }
 }
 """
+    explanation_original = str(pregunta.get("explanation", "")).strip()
     prompt_critico = f"{CRITERIOS_CRITICO}\n\nCONTEXTO:\n{contexto}\n\nPREGUNTA:\n{json.dumps(pregunta, ensure_ascii=False)}\n\nResponde SOLO con el JSON."
 
     for intento in range(2):
@@ -333,6 +336,11 @@ FORMATO DE RESPUESTA:
             if not texto.startswith("¿"): texto = "¿" + texto
             if not texto.endswith("?"): texto = texto + "?"
             pregunta_final["question"] = texto
+
+            if not str(pregunta_final.get("explanation", "")).strip():
+                pregunta_final["explanation"] = explanation_original or str(
+                    pregunta.get("explanation") or pregunta.get("justificacion") or ""
+                ).strip()
 
             if not validar_pregunta(pregunta_final):
                 print(f"    [CRÍTICO] Estructura inválida tras revisión, usando original")
@@ -395,6 +403,7 @@ INSTRUCCIONES:
 - Si el contexto no contiene información técnica útil, genera una pregunta sobre: Ingeniería Informática.
 - PROHIBIDO usar la frase "el contexto proporcionado" en el texto de la pregunta.
 - Nivel: {dificultad} | Puntaje: {puntaje}
+- Incluye "explanation": 1 o 2 frases en español que justifiquen por qué la alternativa correcta es la adecuada.
 
 JSON REQUERIDO:
 {{
@@ -403,7 +412,8 @@ JSON REQUERIDO:
     "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
     "correctAnswerIndex": 0,
     "dificultad": "{dificultad}",
-    "puntaje": {puntaje}
+    "puntaje": {puntaje},
+    "explanation": "Breve justificación de por qué la alternativa correcta es la adecuada."
 }}
 """
         pregunta_valida = None
@@ -445,49 +455,3 @@ JSON REQUERIDO:
 
     with open("preguntas_generadas.json", "w", encoding="utf-8") as f:
         json.dump({"questions": preguntas_generadas}, f, ensure_ascii=False, indent=4)
-
-def ejecutar_pipeline_feedback(puntaje, total):
-    """Ejecuta una inferencia RAG síncrona para obtener el feedback de fin de carrera."""
-    global _idx
-    if _idx is None:
-        raise RuntimeError("Índice no inicializado.")
-
-    retriever = _idx.as_retriever(similarity_top_k=4)
-    nodos = retriever.retrieve("summary concepts key")
-    contexto = "\n\n".join([n.text for n in nodos if nodo_util(n.text)])
-
-    prompt = f"""
-CONTEXTO ACADÉMICO:
-{contexto}
-
-TAREA:
-Un estudiante obtuvo {puntaje} de {total} puntos en una trivia sobre este contenido.
-Genera una retroalimentación formativa en español y JSON estricto.
-{{
-    "mensaje_general": "Resumen breve",
-    "fortalezas": ["Punto 1", "Punto 2"],
-    "areas_mejora": ["Mejora 1", "Mejora 2"]
-}}
-"""
-    for intento in range(3):
-        try:
-            response = Settings.llm.complete(prompt)
-            json_str = extraer_json(response.text)
-            data = json.loads(json_str)
-            
-            # Validación rápida para asegurar que existan las llaves
-            validate(instance=data, schema=SCHEMA_FEEDBACK)
-            
-            print(f"      [OK] Feedback generado correctamente (Intento {intento+1}).")
-            return data
-        except Exception as e:
-            print(f"      [!] Error de formato en feedback (Intento {intento+1}/3): {e}")
-            
-    # SALVAVIDAS: Si falla 3 veces seguidas, devolvemos un JSON de emergencia
-    # Esto garantiza que Flask siempre devuelva 200 OK y Unity nunca se quede congelado.
-    print("      [🚨] Fallaron los 3 intentos. Enviando feedback de respaldo.")
-    return {
-        "mensaje_general": f"Obtuviste {puntaje} de {total} puntos. Tu reporte detallado no pudo ser procesado en este momento.",
-        "fortalezas": ["Completaste la trivia satisfactoriamente."],
-        "areas_mejora": ["Revisa el material de estudio nuevamente para reforzar conceptos."]
-    }

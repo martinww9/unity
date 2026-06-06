@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -30,19 +32,25 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private GameObject _panelLlegaste;
     [SerializeField] private GameObject _panelPodio;
     [SerializeField] private TMP_Text _textoPodio;
+    [SerializeField] private TMP_Text _textoEsperaLlegada;
     [SerializeField] private TMP_Text _textoPuntajeLlegada;
 
     [Header("Retroalimentación IA (Final de Carrera)")]
     [SerializeField] private GameObject panelFeedbackFinal;
     [SerializeField] private TMP_Text textoMensajeGeneral;
-    [SerializeField] private TMP_Text textoFortalezas;
-    [SerializeField] private TMP_Text textoMejoras;
+    [SerializeField] private Transform _feedbackScrollContent;
     [SerializeField] private Button _botonVerFeedback;
     [SerializeField] private TMP_Text _textoBotonFeedback;
+    [SerializeField] private TMP_Text _feedbackPageTitle;
+    [SerializeField] private Button _feedbackPageButton;
+    [SerializeField] private TMP_Text _feedbackPageButtonText;
 
     private FeedbackData _cachedFeedbackData;
+    private readonly List<int> _feedbackLevels = new List<int>();
+    private readonly Dictionary<int, List<FeedbackItem>> _feedbackByLevel = new Dictionary<int, List<FeedbackItem>>();
+    private int _feedbackPageIndex;
+    private Transform _feedbackPaginationRoot;
     private bool _generandoPreguntas = false;
-    private bool _generandoFeedback = false;
     private int _localScore;
     private int _localTotal;
     private Coroutine _refreshLobbyCoroutine;
@@ -91,7 +99,141 @@ public class TriviaUI : MonoBehaviour
     private void ShowOnlyFeedbackPanel()
     {
         HideAllLocalPanels();
-        if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(true);
+        if (panelFeedbackFinal != null)
+        {
+            panelFeedbackFinal.SetActive(true);
+            PrepareFeedbackPanel();
+        }
+    }
+
+    private void PrepareFeedbackPanel()
+    {
+        if (panelFeedbackFinal == null)
+            return;
+
+        DisableFeedbackPanelLayoutGroup();
+        HideLegacyFeedbackTexts();
+        TryResolveFeedbackScrollContent();
+        EnsureFeedbackScrollUI();
+    }
+
+    private void DisableFeedbackPanelLayoutGroup()
+    {
+        VerticalLayoutGroup layoutGroup = panelFeedbackFinal.GetComponent<VerticalLayoutGroup>();
+        if (layoutGroup != null)
+            layoutGroup.enabled = false;
+    }
+
+    private void HideLegacyFeedbackTexts()
+    {
+        Transform root = panelFeedbackFinal.transform;
+        foreach (string name in new[] { "Feedback", "Fortalezas", "Mejoras", "MensajeGeneral" })
+        {
+            Transform child = root.Find(name);
+            if (child != null)
+                child.gameObject.SetActive(false);
+        }
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            if (child.name.StartsWith("Text (TMP)"))
+                child.gameObject.SetActive(false);
+        }
+
+        if (textoMensajeGeneral != null)
+            textoMensajeGeneral.gameObject.SetActive(false);
+    }
+
+    private void TryResolveFeedbackScrollContent()
+    {
+        if (_feedbackScrollContent != null)
+            return;
+
+        Transform content = panelFeedbackFinal.transform.Find("FeedbackScroll/Viewport/Content");
+        if (content != null)
+            _feedbackScrollContent = content;
+    }
+
+    private void EnsureFeedbackScrollUI()
+    {
+        if (_feedbackScrollContent != null || panelFeedbackFinal == null)
+            return;
+
+        Transform scrollRoot = panelFeedbackFinal.transform.Find("FeedbackScroll");
+        if (scrollRoot == null)
+        {
+            var scrollGo = new GameObject("FeedbackScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollRoot = scrollGo.transform;
+            scrollRoot.SetParent(panelFeedbackFinal.transform, false);
+
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            scrollRt.anchorMin = new Vector2(0.05f, 0.12f);
+            scrollRt.anchorMax = new Vector2(0.95f, 0.82f);
+            scrollRt.offsetMin = Vector2.zero;
+            scrollRt.offsetMax = Vector2.zero;
+            scrollRt.localScale = Vector3.one;
+
+            var scrollImage = scrollGo.GetComponent<Image>();
+            scrollImage.color = UITheme.ListBg;
+            scrollImage.raycastTarget = true;
+        }
+
+        Transform viewport = scrollRoot.Find("Viewport");
+        if (viewport == null)
+        {
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewport = viewportGo.transform;
+            viewport.SetParent(scrollRoot, false);
+
+            var viewportRt = viewport.GetComponent<RectTransform>();
+            viewportRt.anchorMin = Vector2.zero;
+            viewportRt.anchorMax = Vector2.one;
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = Vector2.zero;
+
+            var viewportImage = viewport.GetComponent<Image>();
+            viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+        }
+
+        Transform content = viewport.Find("Content");
+        if (content == null)
+        {
+            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            content = contentGo.transform;
+            content.SetParent(viewport, false);
+
+            var contentRt = content.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = Vector2.zero;
+
+            var layout = content.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(8, 8, 8, 8);
+            layout.spacing = 10f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            var fitter = content.GetComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        ScrollRect scrollRect = scrollRoot.GetComponent<ScrollRect>();
+        scrollRect.content = content.GetComponent<RectTransform>();
+        scrollRect.viewport = viewport.GetComponent<RectTransform>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+        _feedbackScrollContent = content;
+        scrollRoot.SetSiblingIndex(0);
     }
 
     public void HideAllForMenu()
@@ -229,7 +371,6 @@ public class TriviaUI : MonoBehaviour
         _localScore = score;
         _localTotal = total;
         _cachedFeedbackData = null;
-        _generandoFeedback = false;
 
         if (JuegoUI.Instance != null)
             JuegoUI.Instance.ShowFinCarreraPhase();
@@ -243,31 +384,32 @@ public class TriviaUI : MonoBehaviour
         }
 
         ShowOnlyFinishPanel();
-
-        if (_textoPuntajeLlegada != null)
-            _textoPuntajeLlegada.text = $"Puntaje final: {score}/{total}";
+        ApplyFinishPanelContent(score, total);
 
         if (_botonVerFeedback != null)
         {
             _botonVerFeedback.interactable = true;
             if (_textoBotonFeedback != null)
-                _textoBotonFeedback.text = "Solicitar evaluación IA";
+                _textoBotonFeedback.text = "Ver explicaciones";
         }
     }
 
     public void UI_BotonSolicitarFeedback()
     {
-        if (_generandoFeedback || QuestionManager.Instance == null) return;
+        if (QuestionManager.Instance == null) return;
 
-        _generandoFeedback = true;
+        SeenQuestion[] seen = PlayerQuestionHistory.GetSeenQuestions(QuestionManager.Instance);
+        if (seen.Length == 0)
+        {
+            ShowFeedbackMessage("No viste preguntas en esta partida, así que no hay explicaciones para mostrar.");
+            return;
+        }
+
         _cachedFeedbackData = null;
+        QuestionManager.Instance.SolicitarFeedbackFinal(_localScore, _localTotal, seen);
 
-        if (_botonVerFeedback != null)
-            _botonVerFeedback.interactable = false;
-        if (_textoBotonFeedback != null)
-            _textoBotonFeedback.text = "Generando...";
-
-        QuestionManager.Instance.SolicitarFeedbackFinal(_localScore, _localTotal, 3);
+        if (_cachedFeedbackData != null)
+            ShowFeedbackPanel(_cachedFeedbackData);
     }
 
     public void UI_BotonFeedback()
@@ -281,24 +423,63 @@ public class TriviaUI : MonoBehaviour
     public void ShowFeedback(FeedbackData data)
     {
         _cachedFeedbackData = data;
-        _generandoFeedback = false;
 
         if (_botonVerFeedback != null) _botonVerFeedback.interactable = true;
-        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver evaluación IA";
+        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver explicaciones";
         if (GameManager.Instance != null) GameManager.Instance.RPC_FeedbackCompletado();
     }
 
     public void OnFeedbackError()
     {
-        _generandoFeedback = false;
         if (_botonVerFeedback != null) _botonVerFeedback.interactable = true;
-        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Reintentar evaluación IA";
+        if (_textoBotonFeedback != null) _textoBotonFeedback.text = "Ver explicaciones";
     }
 
     public void UI_BotonMostrarPanelFeedbackOculto()
     {
         if (_cachedFeedbackData == null) return;
+        ShowFeedbackPanel(_cachedFeedbackData);
+    }
 
+    public void UI_BotonFeedbackSiguienteNivel()
+    {
+        if (_feedbackLevels.Count <= 1) return;
+
+        _feedbackPageIndex = (_feedbackPageIndex + 1) % _feedbackLevels.Count;
+        ShowFeedbackPage(_feedbackPageIndex);
+    }
+
+    private void ShowFeedbackMessage(string message)
+    {
+        EnsureFinCarreraCanvasVisible();
+        ShowOnlyFeedbackPanel();
+        _feedbackLevels.Clear();
+        _feedbackByLevel.Clear();
+        SetFeedbackPaginationVisible(false);
+        ClearFeedbackEntries();
+
+        if (_feedbackScrollContent != null)
+        {
+            CreateFeedbackEntry(1, message, string.Empty, string.Empty);
+            return;
+        }
+
+        if (textoMensajeGeneral != null)
+        {
+            textoMensajeGeneral.gameObject.SetActive(true);
+            textoMensajeGeneral.text = message;
+        }
+    }
+
+    private void ShowFeedbackPanel(FeedbackData data)
+    {
+        EnsureFinCarreraCanvasVisible();
+        ShowOnlyFeedbackPanel();
+        RenderFeedbackItems(data);
+    }
+
+    private void EnsureFinCarreraCanvasVisible()
+    {
         if (JuegoUI.Instance != null)
             JuegoUI.Instance.ShowFinCarreraPhase();
         else
@@ -309,28 +490,351 @@ public class TriviaUI : MonoBehaviour
             Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
             Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
         }
+    }
 
-        ShowOnlyFeedbackPanel();
+    private void BuildFeedbackPages(FeedbackData data)
+    {
+        _feedbackLevels.Clear();
+        _feedbackByLevel.Clear();
 
-        if (textoMensajeGeneral != null && !string.IsNullOrEmpty(_cachedFeedbackData.mensaje_general))
-            textoMensajeGeneral.text = _cachedFeedbackData.mensaje_general;
+        if (data?.items == null)
+            return;
 
-        string[] fuertes = (_cachedFeedbackData.fortalezas != null && _cachedFeedbackData.fortalezas.Length > 0)
-            ? _cachedFeedbackData.fortalezas
-            : _cachedFeedbackData.strengths;
-        string[] mejoras = (_cachedFeedbackData.areas_mejora != null && _cachedFeedbackData.areas_mejora.Length > 0)
-            ? _cachedFeedbackData.areas_mejora
-            : _cachedFeedbackData.weaknesses;
+        foreach (FeedbackItem item in data.items)
+        {
+            int nivel = ResolveFeedbackNivel(item);
+            if (!_feedbackByLevel.TryGetValue(nivel, out List<FeedbackItem> bucket))
+            {
+                bucket = new List<FeedbackItem>();
+                _feedbackByLevel[nivel] = bucket;
+            }
 
-        if (textoFortalezas != null && fuertes != null && fuertes.Length > 0)
-            textoFortalezas.text = "<b>Puntos Fuertes:</b>\n- " + string.Join("\n- ", fuertes);
-        else if (textoFortalezas != null)
-            textoFortalezas.text = "<b>Puntos Fuertes:</b>\n- Buen rendimiento conceptual general.";
+            bucket.Add(item);
+        }
 
-        if (textoMejoras != null && mejoras != null && mejoras.Length > 0)
-            textoMejoras.text = "<b>Áreas Recomendadas:</b>\n- " + string.Join("\n- ", mejoras);
-        else if (textoMejoras != null)
-            textoMejoras.text = "<b>Áreas Recomendadas:</b>\n- No se detectaron debilidades críticas, ¡sigue así!";
+        foreach (int nivel in _feedbackByLevel.Keys)
+            _feedbackLevels.Add(nivel);
+
+        _feedbackLevels.Sort();
+        _feedbackPageIndex = 0;
+    }
+
+    private static int ResolveFeedbackNivel(FeedbackItem item)
+    {
+        if (item != null && item.nivel >= 1 && item.nivel <= 3)
+            return item.nivel;
+
+        string id = item?.id;
+        if (!string.IsNullOrEmpty(id) && id.Length >= 2 && id[0] == 'N' && char.IsDigit(id[1]))
+            return id[1] - '0';
+
+        return 1;
+    }
+
+    private void ShowFeedbackPage(int pageIndex)
+    {
+        if (_feedbackLevels.Count == 0)
+            return;
+
+        pageIndex = Mathf.Clamp(pageIndex, 0, _feedbackLevels.Count - 1);
+        _feedbackPageIndex = pageIndex;
+
+        int nivel = _feedbackLevels[pageIndex];
+        if (!_feedbackByLevel.TryGetValue(nivel, out List<FeedbackItem> items) || items.Count == 0)
+            return;
+
+        EnsureFeedbackPaginationUI();
+        UpdateFeedbackPaginationControls();
+        ClearFeedbackEntries();
+        ResetFeedbackScrollPosition();
+
+        if (_feedbackScrollContent == null)
+        {
+            var fallback = new StringBuilder();
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (i > 0) fallback.Append("\n\n");
+                fallback.Append(FormatFeedbackItem(i + 1, items[i]));
+            }
+
+            if (textoMensajeGeneral != null)
+            {
+                textoMensajeGeneral.gameObject.SetActive(true);
+                textoMensajeGeneral.text = fallback.ToString();
+            }
+
+            return;
+        }
+
+        if (textoMensajeGeneral != null)
+            textoMensajeGeneral.gameObject.SetActive(false);
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            FeedbackItem item = items[i];
+            CreateFeedbackEntry(
+                i + 1,
+                item.question,
+                item.correct_option,
+                item.explanation);
+        }
+    }
+
+    private void RenderFeedbackItems(FeedbackData data)
+    {
+        ClearFeedbackEntries();
+
+        if (data?.items == null || data.items.Length == 0)
+        {
+            ShowFeedbackMessage("No se recibieron explicaciones para las preguntas vistas.");
+            return;
+        }
+
+        BuildFeedbackPages(data);
+        ShowFeedbackPage(0);
+    }
+
+    private void EnsureFeedbackPaginationUI()
+    {
+        if (panelFeedbackFinal == null)
+            return;
+
+        DisableFeedbackPanelLayoutGroup();
+
+        if (_feedbackPaginationRoot == null)
+        {
+            Transform existing = panelFeedbackFinal.transform.Find("FeedbackPagination");
+            if (existing != null)
+                _feedbackPaginationRoot = existing;
+        }
+
+        if (_feedbackPaginationRoot == null)
+        {
+            var rootGo = new GameObject("FeedbackPagination", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            _feedbackPaginationRoot = rootGo.transform;
+            _feedbackPaginationRoot.SetParent(panelFeedbackFinal.transform, false);
+
+            var rootRt = rootGo.GetComponent<RectTransform>();
+            rootRt.anchorMin = new Vector2(0.05f, 0.02f);
+            rootRt.anchorMax = new Vector2(0.95f, 0.1f);
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+            rootRt.localScale = Vector3.one;
+
+            var layout = rootGo.GetComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(8, 8, 4, 4);
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = true;
+        }
+
+        _feedbackPaginationRoot.SetAsLastSibling();
+
+        if (_feedbackPageTitle == null)
+        {
+            Transform titleTr = _feedbackPaginationRoot.Find("PageTitle");
+            if (titleTr != null)
+                _feedbackPageTitle = titleTr.GetComponent<TMP_Text>();
+        }
+
+        if (_feedbackPageTitle == null)
+        {
+            var titleGo = new GameObject("PageTitle", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            titleGo.transform.SetParent(_feedbackPaginationRoot, false);
+            _feedbackPageTitle = titleGo.GetComponent<TextMeshProUGUI>();
+            var titleLayout = titleGo.GetComponent<LayoutElement>();
+            titleLayout.flexibleWidth = 1f;
+            titleLayout.minWidth = 200f;
+            UITheme.StyleHudText(_feedbackPageTitle);
+            _feedbackPageTitle.alignment = TextAlignmentOptions.MidlineLeft;
+        }
+
+        if (_feedbackPageButton == null)
+        {
+            Transform buttonTr = _feedbackPaginationRoot.Find("PageButton");
+            if (buttonTr != null)
+            {
+                _feedbackPageButton = buttonTr.GetComponent<Button>();
+                _feedbackPageButtonText = EnsurePageButtonLabel(buttonTr, "Siguiente nivel");
+            }
+        }
+
+        if (_feedbackPageButton == null)
+        {
+            var buttonGo = new GameObject("PageButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            buttonGo.transform.SetParent(_feedbackPaginationRoot, false);
+
+            var buttonRt = buttonGo.GetComponent<RectTransform>();
+            buttonRt.sizeDelta = new Vector2(260f, 44f);
+
+            var buttonLayout = buttonGo.GetComponent<LayoutElement>();
+            buttonLayout.minWidth = 220f;
+            buttonLayout.preferredWidth = 260f;
+            buttonLayout.minHeight = 44f;
+            buttonLayout.preferredHeight = 44f;
+
+            _feedbackPageButton = buttonGo.GetComponent<Button>();
+            _feedbackPageButtonText = EnsurePageButtonLabel(buttonGo.transform, "Siguiente nivel");
+        }
+        else if (_feedbackPageButtonText == null)
+        {
+            _feedbackPageButtonText = EnsurePageButtonLabel(_feedbackPageButton.transform, "Siguiente nivel");
+        }
+
+        if (_feedbackPageButton != null)
+        {
+            _feedbackPageButton.onClick.RemoveListener(UI_BotonFeedbackSiguienteNivel);
+            _feedbackPageButton.onClick.AddListener(UI_BotonFeedbackSiguienteNivel);
+        }
+    }
+
+    private static TMP_Text EnsurePageButtonLabel(Transform buttonTr, string label)
+    {
+        Transform labelTr = buttonTr.Find("Label");
+        if (labelTr == null)
+        {
+            var labelGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelTr = labelGo.transform;
+            labelTr.SetParent(buttonTr, false);
+
+            var labelRt = labelGo.GetComponent<RectTransform>();
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = Vector2.zero;
+            labelRt.offsetMax = Vector2.zero;
+        }
+
+        TMP_Text labelText = labelTr.GetComponent<TMP_Text>();
+        UITheme.StylePrimaryButton(buttonTr, label);
+        return labelText;
+    }
+
+    private void UpdateFeedbackPaginationControls()
+    {
+        if (_feedbackLevels.Count == 0)
+        {
+            SetFeedbackPaginationVisible(false);
+            return;
+        }
+
+        EnsureFeedbackPaginationUI();
+        SetFeedbackPaginationVisible(true);
+
+        int nivel = _feedbackLevels[_feedbackPageIndex];
+        if (_feedbackPageTitle != null)
+        {
+            _feedbackPageTitle.text = _feedbackLevels.Count > 1
+                ? $"Nivel {nivel} · Explicaciones ({_feedbackPageIndex + 1}/{_feedbackLevels.Count})"
+                : $"Nivel {nivel} · Explicaciones";
+        }
+
+        if (_feedbackPageButton != null)
+            _feedbackPageButton.gameObject.SetActive(_feedbackLevels.Count > 1);
+
+        if (_feedbackPageButtonText != null && _feedbackLevels.Count > 1)
+        {
+            int nextIndex = (_feedbackPageIndex + 1) % _feedbackLevels.Count;
+            int nextNivel = _feedbackLevels[nextIndex];
+            _feedbackPageButtonText.text = nextIndex == 0
+                ? $"Volver a nivel {nextNivel}"
+                : $"Siguiente: Nivel {nextNivel}";
+        }
+    }
+
+    private void SetFeedbackPaginationVisible(bool visible)
+    {
+        if (_feedbackPaginationRoot != null)
+            _feedbackPaginationRoot.gameObject.SetActive(visible);
+    }
+
+    private void ResetFeedbackScrollPosition()
+    {
+        if (_feedbackScrollContent == null)
+            return;
+
+        ScrollRect scroll = _feedbackScrollContent.GetComponentInParent<ScrollRect>();
+        if (scroll != null)
+            scroll.verticalNormalizedPosition = 1f;
+    }
+
+    private void ClearFeedbackEntries()
+    {
+        if (_feedbackScrollContent == null)
+            return;
+
+        for (int i = _feedbackScrollContent.childCount - 1; i >= 0; i--)
+            Destroy(_feedbackScrollContent.GetChild(i).gameObject);
+    }
+
+    private void CreateFeedbackEntry(int number, string question, string correctOption, string explanation)
+    {
+        if (_feedbackScrollContent == null)
+            return;
+
+        var entryGo = new GameObject($"FeedbackEntry_{number}", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+        entryGo.transform.SetParent(_feedbackScrollContent, false);
+
+        var layout = entryGo.GetComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(12, 12, 10, 10);
+        layout.spacing = 6f;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+
+        var layoutElement = entryGo.GetComponent<LayoutElement>();
+        layoutElement.minHeight = 120f;
+        layoutElement.preferredWidth = -1f;
+
+        var image = entryGo.GetComponent<Image>();
+        image.color = UITheme.ListBg;
+        image.raycastTarget = false;
+
+        string questionText = string.IsNullOrWhiteSpace(question)
+            ? $"Pregunta {number}"
+            : $"<b>{number}. {question}</b>";
+
+        CreateFeedbackText(entryGo.transform, questionText, 22f, FontStyles.Bold);
+
+        if (!string.IsNullOrWhiteSpace(correctOption))
+            CreateFeedbackText(entryGo.transform, $"<b>Respuesta correcta:</b> {correctOption}", 20f, FontStyles.Normal);
+
+        if (!string.IsNullOrWhiteSpace(explanation))
+            CreateFeedbackText(entryGo.transform, explanation, 18f, FontStyles.Italic);
+    }
+
+    private static void CreateFeedbackText(Transform parent, string text, float fontSize, FontStyles style)
+    {
+        var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        textGo.transform.SetParent(parent, false);
+
+        var tmp = textGo.GetComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.fontStyle = style;
+        tmp.color = UITheme.TextPrimary;
+        tmp.alignment = TextAlignmentOptions.TopLeft;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.raycastTarget = false;
+
+        var layoutElement = textGo.AddComponent<LayoutElement>();
+        layoutElement.minHeight = fontSize + 12f;
+        layoutElement.flexibleWidth = 1f;
+    }
+
+    private static string FormatFeedbackItem(int number, FeedbackItem item)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"<b>{number}. {item.question}</b>");
+        if (!string.IsNullOrWhiteSpace(item.correct_option))
+            sb.Append("\n<b>Respuesta correcta:</b> ").Append(item.correct_option);
+        if (!string.IsNullOrWhiteSpace(item.explanation))
+            sb.Append("\n").Append(item.explanation);
+        return sb.ToString();
     }
 
     public void ShowGenerateButton()
@@ -493,28 +997,32 @@ public class TriviaUI : MonoBehaviour
 
     public void ShowWaiting()
     {
-        if ((panelFeedbackFinal != null && panelFeedbackFinal.activeSelf) ||
-            (_panelPodio != null && _panelPodio.activeSelf))
+        if (panelFeedbackFinal != null && panelFeedbackFinal.activeSelf)
             return;
 
-        if (_panelLlegaste != null && !_panelLlegaste.activeSelf)
+        if (Player.Local == null || Player.Local.State != EPlayerState.Finished)
+            return;
+
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowFinCarreraPhase();
+        else
         {
-            if (JuegoUI.Instance != null)
-                JuegoUI.Instance.ShowFinCarreraPhase();
-            else
-            {
-                Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
-                Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
-                Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
-                Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
-                Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
-            }
-            ShowOnlyFinishPanel();
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
         }
+
+        ShowOnlyFinishPanel();
+        ApplyFinishPanelContent(_localScore, _localTotal);
     }
 
     public void ShowPodiumForAll()
     {
+        if (Player.Local != null && Player.Local.State == EPlayerState.Finished)
+            return;
+
         if (JuegoUI.Instance != null)
             JuegoUI.Instance.ShowPodiumPhase();
         else
@@ -552,6 +1060,7 @@ public class TriviaUI : MonoBehaviour
 
     public void StartGameUI()
     {
+        PlayerQuestionHistory.Clear();
         HideAllLocalPanels();
 
         if (JuegoUI.Instance != null)
@@ -567,5 +1076,36 @@ public class TriviaUI : MonoBehaviour
 
         if (Player.Local != null)
             UpdateLevelIndicator(Player.Local.CurrentLevel);
+    }
+
+    private void ResolveFinishPanelTexts()
+    {
+        if (_panelLlegaste == null)
+            return;
+
+        if (_textoEsperaLlegada == null)
+        {
+            Transform llegaste = _panelLlegaste.transform.Find("Llegaste");
+            if (llegaste != null)
+                _textoEsperaLlegada = llegaste.GetComponent<TMP_Text>();
+        }
+
+        if (_textoPuntajeLlegada == null)
+        {
+            Transform puntaje = _panelLlegaste.transform.Find("PuntajeLlegada");
+            if (puntaje != null)
+                _textoPuntajeLlegada = puntaje.GetComponent<TMP_Text>();
+        }
+    }
+
+    private void ApplyFinishPanelContent(int score, int total)
+    {
+        ResolveFinishPanelTexts();
+
+        if (_textoEsperaLlegada != null)
+            _textoEsperaLlegada.text = "Esperando que termine el resto";
+
+        if (_textoPuntajeLlegada != null)
+            _textoPuntajeLlegada.text = $"Puntaje final: {score}/{total}";
     }
 }

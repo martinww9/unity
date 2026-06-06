@@ -426,6 +426,7 @@ public class Player : NetworkBehaviour
                 var q = QuestionManager.Instance?.GetQuestion(CurrentLevel, currentIdx);
                 if (q != null)
                 {
+                    PlayerQuestionHistory.Record(CurrentLevel, currentIdx);
                     ui.ShowQuestion(q);
                     _lastDisplayedQuestionIndex = currentIdx;
                 }

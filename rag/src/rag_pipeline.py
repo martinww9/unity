@@ -72,25 +72,15 @@ DIFICULTADES_POR_NIVEL = {
 SCHEMA_QUESTION = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "required": ["id", "question", "options", "correctAnswerIndex", "dificultad", "puntaje"],
+    "required": ["id", "question", "options", "correctAnswerIndex", "dificultad", "puntaje", "explanation"],
     "properties": {
         "id":                 { "type": "string" },
         "question":           { "type": "string" },
         "options":            { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "string" } },
         "correctAnswerIndex": { "type": "integer", "minimum": 0, "maximum": 3 },
         "dificultad":         { "type": "string" },
-        "puntaje":            { "type": "integer" }
-    }
-}
-
-SCHEMA_FEEDBACK = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["mensaje_general", "fortalezas", "areas_mejora"],
-    "properties": {
-        "mensaje_general":      { "type": "string" },
-        "fortalezas":           { "type": "array", "items": { "type": "string" } },
-        "areas_mejora":         { "type": "array", "items": { "type": "string" } },
+        "puntaje":            { "type": "integer" },
+        "explanation":        { "type": "string", "minLength": 1 },
     }
 }
 
@@ -308,6 +298,11 @@ def extraer_json(raw_text):
 def validar_pregunta(q, log_errors=True):
     try:
         validate(instance=q, schema=SCHEMA_QUESTION)
+        explanation = str(q.get("explanation", "")).strip()
+        if not explanation or _es_placeholder(explanation):
+            if log_errors:
+                print("    [SCHEMA] ✗ explanation vacía o placeholder")
+            return False
         return True
     except ValidationError as e:
         if log_errors:
@@ -469,6 +464,10 @@ def normalizar_pregunta(q: dict, nivel: int, index: int, dificultad: str, puntaj
     if len(set(option.lower() for option in options)) < 4:
         return None
 
+    explanation = str(q.get("explanation") or q.get("justificacion") or "").strip()
+    if not explanation or _es_placeholder(explanation):
+        return None
+
     return {
         "id": f"N{nivel}_{index}_{dificultad}",
         "question": question,
@@ -476,6 +475,7 @@ def normalizar_pregunta(q: dict, nivel: int, index: int, dificultad: str, puntaj
         "correctAnswerIndex": correct,
         "dificultad": str(dificultad),
         "puntaje": int(puntaje),
+        "explanation": explanation,
     }
 
 STOPWORDS_TECNICAS = {
@@ -571,11 +571,13 @@ FORMATO DE RESPUESTA:
         "options": ["string", "string", "string", "string"],
         "correctAnswerIndex": 0,
         "dificultad": "string",
-        "puntaje": 10
+        "puntaje": 10,
+        "explanation": "1-2 frases que justifiquen la alternativa correcta"
     }
 }
 IMPORTANTE: options DEBE ser un array de exactamente 4 strings, nunca objetos ni claves "text".
 """
+    explanation_original = str(pregunta.get("explanation", "")).strip()
     contexto_seguro = contexto.encode("utf-8", errors="ignore").decode("utf-8")
     contexto_seguro = re.sub(r'\\u[0-9a-fA-F]{0,3}(?![0-9a-fA-F])', '', contexto_seguro)
     prompt = f"{CRITERIOS}\n\nCONTEXTO:\n{contexto_seguro}\n\nPREGUNTA:\n{json.dumps(pregunta, ensure_ascii=False)}\n\nResponde SOLO con el JSON."
@@ -593,6 +595,8 @@ IMPORTANTE: options DEBE ser un array de exactamente 4 strings, nunca objetos ni
             if pregunta_final is None or not validar_pregunta(pregunta_final):
                 print("    [CRÍTICO] Estructura inválida tras revisión, usando original")
                 return pregunta
+            if not str(pregunta_final.get("explanation", "")).strip() and explanation_original:
+                pregunta_final["explanation"] = explanation_original
             return pregunta_final
         except Exception as e:
             print(f"    [CRÍTICO] Error intento {intento+1}: {e}")
@@ -675,7 +679,8 @@ INSTRUCCIONES DE DISEÑO:
 - PROHIBIDO usar la frase "el contexto proporcionado", "según el texto" o referencias explícitas al documento de lectura.
 - PROHIBIDO usar placeholders como "Opción A", "Opción B", "Respuesta correcta" o "Pregunta técnica concreta".
 - "options" DEBE ser un array de exactamente 4 strings en español. NO uses objetos, NO uses claves "text", "label" u "option".
-- Responde SOLO con un objeto JSON válido. Sin Markdown, sin explicación, sin listas externas.
+- Incluye "explanation": 1 o 2 frases en español que justifiquen por qué la alternativa correcta es la adecuada, basadas en el contexto.
+- Responde SOLO con un objeto JSON válido. Sin Markdown, sin texto fuera del JSON, sin listas externas.
 
 JSON REQUERIDO:
 {{
@@ -684,7 +689,8 @@ JSON REQUERIDO:
     "options": ["Alternativa técnica A", "Alternativa técnica B", "Alternativa técnica C", "Alternativa técnica D"],
     "correctAnswerIndex": 0,
     "dificultad": "{dificultad}",
-    "puntaje": {puntaje}
+    "puntaje": {puntaje},
+    "explanation": "Breve justificación de por qué la alternativa correcta es la adecuada."
 }}
 """
         pregunta_valida = None
@@ -791,49 +797,3 @@ def ejecutar_pipeline_todos_los_niveles(ia_state: dict, state_lock):
 
     if all_completed:
         save_questions_file(ia_state["levels"])
-
-def ejecutar_pipeline_feedback(puntaje: int, total: int, nivel: int = 3):
-    global _idx
-    if _idx is None:
-        raise RuntimeError("Índice no inicializado.")
-
-    retriever = _idx.as_retriever(similarity_top_k=4)
-    temas_nivel = " ".join(TEMAS_POR_NIVEL.get(nivel, TEMAS_POR_NIVEL[3])[:3])
-    nodos = retriever.retrieve(temas_nivel)
-    contexto = "\n\n".join([n.text for n in nodos if nodo_util(n.text)])
-
-    # Condición Low-Guidance aplicada también a la generación de la retroalimentación final
-    prompt = f"""
-CONTEXTO ACADÉMICO (Estructuras de Datos):
-{contexto}
-
-TAREA:
-Un estudiante obtuvo {puntaje} de {total} puntos totales en los 3 niveles de una trivia sobre estructuras de datos.
-Genera una retroalimentación formativa en español y JSON estricto.
-Use ejemplos y el lenguaje de la sección del contexto académico provisto para estructurar la respuesta.
-
-JSON REQUERIDO:
-{{
-    "mensaje_general": "Resumen breve del desempeño formativo",
-    "fortalezas": ["Concepto 1 verificado", "Concepto 2 verificado"],
-    "areas_mejora": ["Área 1 por reforzar", "Área 2 por reforzar"]
-}}
-"""
-    for intento in range(3):
-        try:
-            response = Settings.llm.complete(prompt)
-            json_str = extraer_json(response.text)
-            data = json.loads(json_str)
-            
-            validate(instance=data, schema=SCHEMA_FEEDBACK)
-            print(f"      [OK] Feedback generado correctamente (Intento {intento+1}).")
-            return data
-        except Exception as e:
-            print(f"      [!] Error de formato en feedback (Intento {intento+1}/3): {e}")
-            
-    print("      [🚨] Fallaron los 3 intentos. Enviando feedback de respaldo.")
-    return {
-        "mensaje_general": f"Obtuviste {puntaje} de {total} puntos. Tu reporte detallado no pudo ser procesado en este momento.",
-        "fortalezas": ["Completaste la trivia satisfactoriamente."],
-        "areas_mejora": ["Revisa el material de estudio nuevamente para reforzar conceptos."]
-    }

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
@@ -20,6 +21,7 @@ public class QuestionManager : NetworkBehaviour
     private const int FieldOption1 = 3;
     private const int FieldOption2 = 4;
     private const int FieldOption3 = 5;
+    private const int FieldExplanation = 6;
 
     private readonly Dictionary<int, Question[]> _questionsByLevel = new Dictionary<int, Question[]>();
     private readonly Dictionary<int, List<Question>> _incomingByLevel = new Dictionary<int, List<Question>>();
@@ -36,7 +38,6 @@ public class QuestionManager : NetworkBehaviour
     private const string ENDPOINT_QUESTIONS_STATUS = "/questions/status";
     private const string ENDPOINT_QUESTIONS_ALL = "/questions/all";
     private const string ENDPOINT_QUESTIONS_LEVEL = "/questions/";
-    private const string ENDPOINT_FEEDBACK = "/feedback";
     private const string StaticQuestionsRelativePath = "rag/output/preguntas_estaticas.json";
     private const float PollIntervalSeconds = 3f;
 
@@ -48,6 +49,7 @@ public class QuestionManager : NetworkBehaviour
         public int correctAnswerIndex;
         public int puntaje = 10;
         public string dificultad = "Fácil";
+        public string explanation;
         public bool metaReceived;
         public readonly HashSet<int> fieldsReceived = new HashSet<int>();
         public readonly Dictionary<int, ChunkAssembly> chunkAssemblies = new Dictionary<int, ChunkAssembly>();
@@ -215,6 +217,7 @@ public class QuestionManager : NetworkBehaviour
             case FieldOption1: partial.options[1] = text; break;
             case FieldOption2: partial.options[2] = text; break;
             case FieldOption3: partial.options[3] = text; break;
+            case FieldExplanation: partial.explanation = text; break;
             default: return;
         }
 
@@ -251,7 +254,7 @@ public class QuestionManager : NetworkBehaviour
             return;
 
         if (!partial.metaReceived) return;
-        for (int fieldId = FieldId; fieldId <= FieldOption3; fieldId++)
+        for (int fieldId = FieldId; fieldId <= FieldExplanation; fieldId++)
         {
             if (!partial.fieldsReceived.Contains(fieldId))
                 return;
@@ -273,7 +276,8 @@ public class QuestionManager : NetworkBehaviour
             },
             correctAnswerIndex = partial.correctAnswerIndex,
             dificultad = partial.dificultad,
-            puntaje = partial.puntaje
+            puntaje = partial.puntaje,
+            explanation = partial.explanation ?? ""
         };
 
         _partialQuestions.Remove(key);
@@ -352,6 +356,7 @@ public class QuestionManager : NetworkBehaviour
         SendQuestionFieldRpc(nivel, qIndex, FieldOption1, o2);
         SendQuestionFieldRpc(nivel, qIndex, FieldOption2, o3);
         SendQuestionFieldRpc(nivel, qIndex, FieldOption3, o4);
+        SendQuestionFieldRpc(nivel, qIndex, FieldExplanation, q.explanation ?? "");
     }
 
     private void SendQuestionPartsTarget(PlayerRef target, int nivel, int qIndex, Question q)
@@ -369,6 +374,7 @@ public class QuestionManager : NetworkBehaviour
         SendQuestionFieldRpcTarget(target, nivel, qIndex, FieldOption1, o2);
         SendQuestionFieldRpcTarget(target, nivel, qIndex, FieldOption2, o3);
         SendQuestionFieldRpcTarget(target, nivel, qIndex, FieldOption3, o4);
+        SendQuestionFieldRpcTarget(target, nivel, qIndex, FieldExplanation, q.explanation ?? "");
     }
 
     private bool TryParseLevelPool(string json, out LevelQuestionPool pool)
@@ -976,42 +982,48 @@ public class QuestionManager : NetworkBehaviour
         ApplyQuestionFieldChunk(nivel, qIndex, fieldId, chunkIndex, totalChunks, text);
     }
 
-    public void SolicitarFeedbackFinal(int score, int total, int nivel = 3)
+    public void SolicitarFeedbackFinal(int score, int total, SeenQuestion[] seenQuestions)
     {
-        StartCoroutine(PostFeedbackRoutine(score, total, nivel));
-    }
-
-    private IEnumerator PostFeedbackRoutine(int score, int total, int nivel)
-    {
-        string url = BASE_URL + ENDPOINT_FEEDBACK;
-        FeedbackRequest payload = new FeedbackRequest { score = score, total = total, nivel = nivel };
-        string jsonBody = JsonUtility.ToJson(payload);
-
-        using (UnityWebRequest webRequest = new UnityWebRequest(url, "POST"))
+        if (seenQuestions == null || seenQuestions.Length == 0)
         {
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
-            webRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            webRequest.downloadHandler = new DownloadHandlerBuffer();
-            webRequest.SetRequestHeader("Content-Type", "application/json");
-            ApplyNgrokHeaders(webRequest);
-            webRequest.timeout = 300;
-
-            yield return webRequest.SendWebRequest();
-
-            if (webRequest.result == UnityWebRequest.Result.Success)
-            {
-                FeedbackData data = JsonUtility.FromJson<FeedbackData>(webRequest.downloadHandler.text);
-                Debug.Log("IA: Feedback generado correctamente.");
-
-                if (TriviaUI.Instance != null)
-                    TriviaUI.Instance.ShowFeedback(data);
-            }
-            else
-            {
-                Debug.LogError("IA: Error al procesar la retroalimentación: " + webRequest.error);
-                if (TriviaUI.Instance != null)
-                    TriviaUI.Instance.OnFeedbackError();
-            }
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.OnFeedbackError();
+            return;
         }
+
+        var items = new List<FeedbackItem>(seenQuestions.Length);
+        foreach (SeenQuestion seen in seenQuestions)
+        {
+            Question q = seen.Question;
+            if (q == null)
+                continue;
+
+            string correct = "";
+            if (q.options != null && q.correctAnswerIndex >= 0 && q.correctAnswerIndex < q.options.Length)
+                correct = q.options[q.correctAnswerIndex];
+
+            items.Add(new FeedbackItem
+            {
+                id = q.id,
+                question = q.question,
+                correct_option = correct,
+                nivel = seen.Level,
+                explanation = string.IsNullOrWhiteSpace(q.explanation)
+                    ? (string.IsNullOrWhiteSpace(correct)
+                        ? "No hay justificación disponible para esta pregunta."
+                        : $"La alternativa correcta es \"{correct}\".")
+                    : q.explanation
+            });
+        }
+
+        if (items.Count == 0)
+        {
+            if (TriviaUI.Instance != null)
+                TriviaUI.Instance.OnFeedbackError();
+            return;
+        }
+
+        if (TriviaUI.Instance != null)
+            TriviaUI.Instance.ShowFeedback(new FeedbackData { items = items.ToArray() });
     }
 }

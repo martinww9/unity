@@ -201,6 +201,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
 
     private void DestroyRunnerComponents()
     {
+        if (this == null) return;
         foreach (var runner in GetComponents<NetworkRunner>())
         {
             if (runner != null)
@@ -247,7 +248,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
             return;
 
         _suppressReturnToMenuOnShutdown = true;
-        _runner.Shutdown();
+        await _runner.Shutdown();
 
         for (int i = 0; i < 120; i++)
         {
@@ -549,6 +550,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
+        if (this == null) return;
         DestroyRunnerComponents();
 
         if (!_suppressReturnToMenuOnShutdown)

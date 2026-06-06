@@ -3,81 +3,87 @@
     "questions": [
         {
             "id": "N2_1_Fácil",
-            "question": "¿Cuál es la notación algorítmica que representa el tiempo de ejecución de un algoritmo secuencial con n comparaciones?",
+            "question": "¿Cuál es el tiempo de complejidad del algoritmo de búsqueda binaria, en comparación con la búsqueda secuencial?",
             "options": [
-                "O( log n )",
-                "O( n )",
+                "O(n)",
+                "O(log n)",
                 "O(n log n)",
-                "O(log n)"
+                "O(1)"
             ],
-            "correctAnswerIndex": 1,
+            "correctAnswerIndex": 2,
             "dificultad": "Fácil",
-            "puntaje": 10
+            "puntaje": 10,
+            "explanation": "La búsqueda binaria tiene un tiempo de complejidad de O(log n), mientras que la búsqueda secuencial tiene un tiempo de complejidad de O(n)."
         },
         {
             "id": "N2_2_Media",
-            "question": "¿Cuál es el tiempo complejo temporal de la algoritmo iterativo RECURSIVE-ACTIVITY-SELECTOR para resolver recurrences de forma recursiva?",
+            "question": "¿Cuál es el tiempo complejo temporal de una iteración recursiva de la función T.n = 3T.(n-1) + c*n^2, donde c es un constante?",
             "options": [
-                "O(n^2)",
+                "O(n)",
                 "O(n log n)",
-                "O(n log log n)",
+                "O(n^2)",
                 "O(n^3)"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Media",
-            "puntaje": 20
-        },
-        {
-            "id": "N2_3_Media",
-            "question": "¿Cuál es el tipo de estructura de datos que puede variar su tamaño y comportarse como una estructura dinámica, pero requiere definir un vector dimensionado con tamaño suficiente?",
-            "options": [
-                "Estructura lineal",
-                "Lista contigua",
-                "Pila",
-                "Cola"
             ],
             "correctAnswerIndex": 2,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es O(n^2) porque la función T.n se convierte en un bucle que se repite n veces, y cada iteración tiene complejidad O(n)."
+        },
+        {
+            "id": "N2_3_Media",
+            "question": "¿Cuál es el tipo de estructura de datos que se caracteriza por tener una lista de nodos, en cada nodo se almacena un puntero con la posición o dirección del siguiente elemento de la lista?",
+            "options": [
+                "Estructuras lineales",
+                "Estructuras no lineales",
+                "Estructuras dinámicas",
+                "Listas contiguas"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Media",
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es la opción 4, porque se describe una estructura de datos que combina elementos de una lista dinámica y lineal."
         },
         {
             "id": "N2_4_Media",
-            "question": "¿Cuál es el tipo de heap utilizado en la implementación de una cola con prioridad?",
+            "question": "¿Cuál es el tiempo de ejecución en promedio de una cola con prioridad montículo (max-heap) cuando se insertan elementos aleatorios?",
             "options": [
-                "Monticulo min",
-                "Monticulo max",
-                "Montículo binario",
-                "Heap equilibrado"
+                "O(n)",
+                "O(log n)",
+                "O(1)",
+                "O(n log n)"
             ],
-            "correctAnswerIndex": 1,
+            "correctAnswerIndex": 2,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es O(log n) porque, en un max-heap, insertar un elemento aleatorio toma al menos log(n) tiempo. Esto se debe a que el heap se divide en dos partes en cada iteración para maximizar el valor del elemento."
         },
         {
             "id": "N2_5_Media",
-            "question": "¿Cuál es el recorrido in-orden de un árbol binario de búsqueda?",
+            "question": "¿Cuál es el resultado del recorrido in-orden en un árbol binario de búsqueda?",
             "options": [
-                "Alternativa técnica A: in-orden, pre-orden y post-orden",
-                "Alternativa técnica B: in-orden, pre-orden y pila",
-                "Alternativa técnica C: in-orden, recorrido aleatorio y árbol binario",
-                "Alternativa técnica D: in-orden, recorrido invertido y árbol binario"
+                "Se obtiene el valor más pequeño del nodo raíz",
+                "Se obtiene el valor más grande del nodo raíz",
+                "Se obtienen los valores ordenados desde menor a mayor",
+                "No se puede determinar sin más información"
             ],
-            "correctAnswerIndex": 0,
+            "correctAnswerIndex": 2,
             "dificultad": "Media",
-            "puntaje": 20
+            "puntaje": 20,
+            "explanation": "La respuesta correcta es 'Se obtienen los valores ordenados desde menor a mayor' porque en un árbol binario de búsqueda, el recorrido in-orden visita los nodos de manera que todos los valores del subárbol izquierdo son menores o iguales al valor del nodo y todos los valores del subárbol derecho son mayores que el valor del nodo, lo que permite obtener los valores ordenados de menor a mayor."
         },
         {
             "id": "N2_6_Difícil",
-            "question": "¿En un árbol AVL balanceado, si el peso de la raíz es mayor que el peso del nodo más a la izquierda y el peso del nodo más derecho es menor que el peso del nodo más a la derecha, lo que se recomienda hacer con estos nodos?",
+            "question": "¿Cuál es el resultado de rotar una nodo raíz derecho a izquierda en un árbol AVL?",
             "options": [
-                "Rotar la raíz hacia la izquierda",
-                "Rotar la raíz hacia la derecha",
-                "No realizar ninguna acción",
-                "Ajustar el peso de los nodos"
+                "El balanceo se mantiene",
+                "El balanceo cambia",
+                "La estructura del árbol no cambia",
+                "La profundidad del árbol aumenta"
             ],
-            "correctAnswerIndex": 0,
+            "correctAnswerIndex": 2,
             "dificultad": "Difícil",
-            "puntaje": 30
+            "puntaje": 30,
+            "explanation": "La respuesta correcta es que la estructura del árbol cambia, ya que rotar a izquierda afecta el balanceo y puede cambiar la posición de los nodos."
         }
     ]
 }

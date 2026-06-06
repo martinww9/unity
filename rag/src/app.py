@@ -1,7 +1,6 @@
 # app.py
 import threading
-from flask import Flask, jsonify, request
-from jsonschema import ValidationError
+from flask import Flask, jsonify
 from . import rag_pipeline
 
 app = Flask(__name__)
@@ -112,23 +111,6 @@ def run_get_questions_nivel(nivel):
     if payload is None:
         return jsonify({"error": "Nivel inválido. Usa 1, 2 o 3."}), 400
     return jsonify(payload)
-
-
-@app.route("/api/feedback", methods=["POST"])
-@app.route("/api/generate-feedback", methods=["POST"])
-def run_generate_feedback():
-    datos = request.get_json() or {}
-    puntaje = datos.get("score", 0)
-    total = datos.get("total", 30)
-    nivel = datos.get("nivel", 3)
-
-    try:
-        resultado = rag_pipeline.ejecutar_pipeline_feedback(puntaje, total, nivel)
-        return jsonify(resultado)
-    except ValidationError as e:
-        return jsonify({"error": f"Feedback con formato inválido: {e.message}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ public class Question
     public int correctAnswerIndex;
     public string dificultad;
     public int puntaje;
+    public string explanation;
 }
 
 [Serializable]
@@ -41,19 +42,35 @@ public class QuestionsStatusResponse
 }
 
 [Serializable]
+public class FeedbackQuestionPayload
+{
+    public string id;
+    public string question;
+    public string[] options;
+    public int correctAnswerIndex;
+    public int nivel;
+}
+
+[Serializable]
 public class FeedbackRequest
 {
     public int score;
     public int total;
-    public int nivel = 3;
+    public FeedbackQuestionPayload[] questions;
+}
+
+[Serializable]
+public class FeedbackItem
+{
+    public string id;
+    public string question;
+    public string correct_option;
+    public string explanation;
+    public int nivel;
 }
 
 [Serializable]
 public class FeedbackData
 {
-    public string mensaje_general;
-    public string[] strengths;
-    public string[] weaknesses;
-    public string[] fortalezas;
-    public string[] areas_mejora;
+    public FeedbackItem[] items;
 }
