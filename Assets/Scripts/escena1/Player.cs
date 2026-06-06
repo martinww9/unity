@@ -11,6 +11,7 @@ public class Player : NetworkBehaviour
     [Networked] public int LevelQuestionIndex { get; set; } = -1;
     [Networked] private TickTimer LevelCycleTimer { get; set; }
     [Networked] private TickTimer _stunTimer { get; set; }
+    [Networked] private TickTimer _movementResumeLock { get; set; }
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
     [Networked] public int PlayerRank { get; set; }
     [Networked] public int RespuestasCorrectas { get; set; }
@@ -63,7 +64,7 @@ public class Player : NetworkBehaviour
         if (!Object.HasStateAuthority || _cc == null)
             return;
 
-        _cc.Velocity = Vector3.zero;
+        ResetCharacterMotion();
 
         var controller = GetComponent<CharacterController>();
         if (controller == null)
@@ -73,12 +74,37 @@ public class Player : NetworkBehaviour
         Vector3 rayOrigin = transform.position + Vector3.up * (controller.height * 0.5f + 0.25f);
         float rayLength = controller.height + 1.5f;
 
-        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, rayLength, ~0, QueryTriggerInteraction.Ignore))
+        RaycastHit? bestHit = null;
+        foreach (var hit in Physics.RaycastAll(rayOrigin, Vector3.down, rayLength, ~0, QueryTriggerInteraction.Ignore))
         {
-            float groundedY = hit.point.y - bottomOffset;
+            if (hit.normal.y < 0.7f) continue;
+            if (bestHit == null || hit.point.y < bestHit.Value.point.y)
+                bestHit = hit;
+        }
+
+        if (bestHit.HasValue)
+        {
+            float groundedY = bestHit.Value.point.y - bottomOffset;
             if (Mathf.Abs(transform.position.y - groundedY) > 0.02f)
                 _cc.Teleport(new Vector3(transform.position.x, groundedY, transform.position.z), transform.rotation);
         }
+    }
+
+    private void ResetCharacterMotion()
+    {
+        if (Object.HasStateAuthority && _cc != null)
+        {
+            _cc.Velocity = Vector3.zero;
+            _cc.Grounded = true;
+        }
+    }
+
+    private void LockMovementResume(int ticks = 2)
+    {
+        if (!Object.HasStateAuthority || Runner == null)
+            return;
+
+        _movementResumeLock = TickTimer.CreateFromTicks(Runner, ticks);
     }
 
     public override void Spawned()
@@ -247,9 +273,18 @@ public class Player : NetworkBehaviour
         {
             if (GetInput(out NetworkInputData lobbyData))
             {
-                HandleMovement(lobbyData);
                 ApplyLookInput(lobbyData);
+                ResetCharacterMotion();
             }
+            return;
+        }
+
+        if (!_movementResumeLock.ExpiredOrNotRunning(Runner))
+        {
+            ResetCharacterMotion();
+            SetLocomotionAnim(false, false);
+            if (GetInput(out NetworkInputData lockedData))
+                ApplyLookInput(lockedData);
             return;
         }
 
@@ -258,14 +293,19 @@ public class Player : NetworkBehaviour
             switch (State)
             {
                 case EPlayerState.Responding:
+                    ResetCharacterMotion();
                     SetLocomotionAnim(false, false);
                     HandleRespondingState(data);
                     break;
 
                 case EPlayerState.Stunned:
-                    _cc.Velocity = Vector3.zero;
+                    ResetCharacterMotion();
                     SetLocomotionAnim(false, false);
-                    if (_stunTimer.Expired(Runner)) State = EPlayerState.Advancing;
+                    if (_stunTimer.Expired(Runner))
+                    {
+                        LockMovementResume(1);
+                        State = EPlayerState.Advancing;
+                    }
                     break;
 
                 case EPlayerState.Advancing:
@@ -315,7 +355,10 @@ public class Player : NetworkBehaviour
         if (IsInResponseWindow() && LastAnsweredIndex != currentQIndex)
         {
             if (State != EPlayerState.Responding && State != EPlayerState.Stunned)
+            {
                 State = EPlayerState.Responding;
+                ResetCharacterMotion();
+            }
         }
 
         if (!IsInResponseWindow() && State == EPlayerState.Responding)
@@ -379,6 +422,9 @@ public class Player : NetworkBehaviour
         if (currentQ == null) return;
 
         LastAnsweredIndex = LevelQuestionIndex;
+        ResetCharacterMotion();
+        StabilizeCharacterPhysics();
+        LockMovementResume();
 
         if (data.SelectedAnswerIndex == currentQ.correctAnswerIndex)
         {
