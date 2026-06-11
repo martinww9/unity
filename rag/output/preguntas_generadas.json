@@ -8,87 +8,87 @@
             "questions": [
                 {
                     "id": "N1_1_Fácil",
-                    "question": "¿Cuál es el nombre del tipo de dato que se considera a un entero y una matriz de manera equivalente?",
+                    "question": "¿Qué TDA modela de mejor manera la acción deshacer (ctrl + z)?",
                     "options": [
-                        "Tipo de dato estructurado",
-                        "Tipo de dato primitivo",
-                        "Tipo de dato simple",
-                        "Tipo de dato contiguo"
+                        "Cola",
+                        "Pila",
+                        "Arreglo",
+                        "Arbol"
                     ],
-                    "correctAnswerIndex": 2,
+                    "correctAnswerIndex": 1,
                     "dificultad": "Fácil",
                     "puntaje": 10,
-                    "explanation": "La respuesta correcta es el tipo de dato simple porque se considera que un entero y una matriz pueden ser tratados como datos individuales."
+                    "explanation": "La respuesta correcta es la pila, debido a que cada acción se va apilando de manera LIFO y al deshacer simplemente se elimina la última acción almacenada."
                 },
                 {
                     "id": "N1_2_Fácil",
-                    "question": "¿Cuál es el tipo de dato abstracto (TDA) que se utiliza en las estructuras de datos contiguas?",
+                    "question": "¿Cómo se invierte el contenido de una cola?",
                     "options": [
-                        "TDA Punto",
-                        "TDA Lista",
-                        "TDA Vector",
-                        "TDA Pila"
+                        "Con otra cola",
+                        "Con una pila",
+                        "Con un arreglo",
+                        "Con recursión"
                     ],
-                    "correctAnswerIndex": 3,
+                    "correctAnswerIndex": 1,
                     "dificultad": "Fácil",
                     "puntaje": 10,
-                    "explanation": "Una estructura de datos contigua utiliza un TDA Pila para almacenar y manipular sus elementos."
+                    "explanation": "Se desencolan todos los elementos y se van apilando. Al vaciar la cola, se desapila de vuelta a la cola: el último en salir de la cola fue el primero en la pila, logrando el orden inverso."
                 },
                 {
                     "id": "N1_3_Fácil",
-                    "question": "¿Cuál es el efecto de asignar un valor a la variable X SIG(X) en una lista enlazada?",
+                    "question": "¿Qué TDA es ideal para el historial de la página actual en un navegador?",
                     "options": [
-                        "Se obtiene el nodo anterior de la lista.",
-                        "Se obtiene el nodo siguiente de la lista.",
-                        "Se avanza hacia el nodo siguiente de la lista y se almacena su valor.",
-                        "No afecta el valor del puntero X."
+                        "Arbol",
+                        "Cola",
+                        "Lista enlazada",
+                        "Pila"
                     ],
-                    "correctAnswerIndex": 2,
+                    "correctAnswerIndex": 3,
                     "dificultad": "Fácil",
                     "puntaje": 10,
-                    "explanation": "La asignación de X SIG(X) avanza hacia el nodo siguiente en la lista y se almacena su valor, permitiendo avanzar a lo largo de toda la lista."
+                    "explanation": "Cada página visitada se apila. Al presionar 'atrás', se extrae la más reciente. El orden de acceso inverso (última visitada = primera en salir) es exactamente LIFO."
                 },
                 {
-                    "id": "N1_4_Media",
-                    "question": "¿Cuando se inserta un nuevo nodo en una lista doblemente enlazada, ¿qué pasa con los nodos disponibles?",
+                    "id": "N1_4_Fácil",
+                    "question": "¿Cuál es la complejidad de buscar en un arreglo no ordenado?",
                     "options": [
-                        "Se elimina el nodo que coincide con la información a ser ingresada",
-                        "Se agrega al final de la lista",
-                        "Se utiliza para guardar el nodo antes de ser insertado",
-                        "No se afecta el conjunto de nodos disponibles"
+                        "O(1)",
+                        "O(n!)",
+                        "O(n log n)",
+                        "O(n)"
                     ],
-                    "correctAnswerIndex": 2,
-                    "dificultad": "Media",
-                    "puntaje": 20,
-                    "explanation": "La respuesta correcta es que los nodos disponibles se utilizan para guardar el nodo antes de ser insertado en la lista, para luego ser reutilizados si se eliminaran otros elementos."
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Fácil",
+                    "puntaje": 10,
+                    "explanation": "Sin orden no hay atajo disponible, en el peor de los casos debemos recorrer los n elementos del arreglo."
                 },
                 {
                     "id": "N1_5_Media",
-                    "question": "¿Cuál es el algoritmo que determina si una pila está vacía, y cómo se utiliza en los procedimientos PUSH y POP?",
+                    "question": "¿Cuál es la complejidad de iterar dos bucles anidados de n iteraciones cada uno?",
                     "options": [
-                        "Utiliza un puntero de la pila para comparar su valor con la longitud máxima del vector S",
-                        "Verifica si el elemento en la cima de la pila es igual a 0",
-                        "Compara el valor del puntero de la pila con la base de ésta",
-                        "No se proporciona ninguna condición específica para determinar si una pila está vacía"
-                    ],
-                    "correctAnswerIndex": 3,
-                    "dificultad": "Media",
-                    "puntaje": 20,
-                    "explanation": "La pregunta requiere que el estudiante comprenda la implementación de pilas y la condición para determinar si una pila está vacía, lo cual se menciona en el contexto de estudio."
-                },
-                {
-                    "id": "N1_6_Media",
-                    "question": "¿Qué sucede con el orden de los elementos en una cola FIFO si se intenta eliminar un elemento más rápido que se agrega?",
-                    "options": [
-                        "Se mantienen ordenados",
-                        "No se afectan los demás elementos",
-                        "Se invertirán la posición",
-                        "No se puede eliminar"
+                        "O(n!)",
+                        "O(log n)",
+                        "O(n^2)",
+                        "O(2n)"
                     ],
                     "correctAnswerIndex": 2,
                     "dificultad": "Media",
                     "puntaje": 20,
-                    "explanation": "La respuesta correcta es 'Se invertirán la posición', porque en una cola FIFO, los elementos que se agregan están en el final y los que se eliminan están al principio. Si se intenta eliminar un elemento más rápido que se agrega, el orden de los elementos se invierte."
+                    "explanation": "El bucle externo se ejecutará n veces y por cada iteración el bucle interno debe ejecutarce otras n veces, resultando en n x n = n^2 operaciones"
+                },
+                {
+                    "id": "N1_6_Media",
+                    "question": "¿Dónde es más eficiente hacer PUSH/POP en una lista enlazada?",
+                    "options": [
+                        "Es igual en cualquier parte",
+                        "Head (Al inicio)",
+                        "Exactamente al medio",
+                        "Tail (al final)"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Media",
+                    "puntaje": 20,
+                    "explanation": "Insertar o eliminar en Head toma O(1), solo requiere redirigir el puntero. Hacerlo al final requiere recorrer toda la lista hasta Tail, tomando O(n), a menos que preexista un puntero a Tail."
                 }
             ]
         },
@@ -98,87 +98,87 @@
             "questions": [
                 {
                     "id": "N2_1_Fácil",
-                    "question": "¿Cuál es el tiempo de complejidad del algoritmo de búsqueda binaria, en comparación con la búsqueda secuencial?",
+                    "question": "En un árbol de búsqueda binario, ¿Cómo se encuentra el mínimo?",
                     "options": [
-                        "O(n)",
-                        "O(log n)",
-                        "O(n log n)",
-                        "O(1)"
+                        "Navegar por el hijo derecho hasta el final",
+                        "El primer nodo es el mínimo",
+                        "No existe un mínimo",
+                        "Navegar por el hijo izquierdo hasta el final"
                     ],
-                    "correctAnswerIndex": 2,
+                    "correctAnswerIndex": 3,
                     "dificultad": "Fácil",
                     "puntaje": 10,
-                    "explanation": "La búsqueda binaria tiene un tiempo de complejidad de O(log n), mientras que la búsqueda secuencial tiene un tiempo de complejidad de O(n)."
+                    "explanation": "La propiedad del BST garantiza que todo hijo izquierdo es menor que su padre Seguir esa cadena hasta un nodo sin hijo izquierda garantiza llegar al mínimo del árbol. Es una complejidad O(h) donde h es la altura"
                 },
                 {
                     "id": "N2_2_Media",
-                    "question": "¿Cuál es el tiempo complejo temporal de una iteración recursiva de la función T.n = 3T.(n-1) + c*n^2, donde c es un constante?",
+                    "question": "¿Qué tiene de especial el recorrido 'inorder' en un BST",
                     "options": [
-                        "O(n)",
-                        "O(n log n)",
-                        "O(n^2)",
-                        "O(n^3)"
-                    ],
-                    "correctAnswerIndex": 2,
-                    "dificultad": "Media",
-                    "puntaje": 20,
-                    "explanation": "La respuesta correcta es O(n^2) porque la función T.n se convierte en un bucle que se repite n veces, y cada iteración tiene complejidad O(n)."
-                },
-                {
-                    "id": "N2_3_Media",
-                    "question": "¿Cuál es el tipo de estructura de datos que se caracteriza por tener una lista de nodos, en cada nodo se almacena un puntero con la posición o dirección del siguiente elemento de la lista?",
-                    "options": [
-                        "Estructuras lineales",
-                        "Estructuras no lineales",
-                        "Estructuras dinámicas",
-                        "Listas contiguas"
+                        "Visita primero las hojas",
+                        "Recorre por niveles de arriba a abajo",
+                        "Produce elementos en orden descendente",
+                        "Produce elementos en orden ascendente"
                     ],
                     "correctAnswerIndex": 3,
                     "dificultad": "Media",
                     "puntaje": 20,
-                    "explanation": "La respuesta correcta es la opción 4, porque se describe una estructura de datos que combina elementos de una lista dinámica y lineal."
+                    "explanation": "La propiedad fundamental de un BST es que todo nodo izquierdo es menor y todo nodo derecho es mayor a la raiz. El inorder visita izquierda -> raiz -> derecha, respetando el orden exacto."
+                },
+                {
+                    "id": "N2_3_Media",
+                    "question": "¿Qué garantiza un árbol autobalanceable y no un BST?",
+                    "options": [
+                        "Altura máxima de O(log n)",
+                        "Acceso aleatorio en O(1)",
+                        "Nodos ordenados por inserción",
+                        "El mínimo siempre está al inicio"
+                    ],
+                    "correctAnswerIndex": 0,
+                    "dificultad": "Media",
+                    "puntaje": 20,
+                    "explanation": "Un BST sin balanceo puede degenerar en una lista si los datos se insertan en orden, alcanzando altura O(n). Los árboles autobalanceables (AVL, rojo-negro) ejecutan rotaciones automáticas para mantener la altura acotada en O(log n) sin importar el orden de inserción."
                 },
                 {
                     "id": "N2_4_Media",
-                    "question": "¿Cuál es el tiempo de ejecución en promedio de una cola con prioridad montículo (max-heap) cuando se insertan elementos aleatorios?",
+                    "question": "¿Qué retorna un mapa al insetar una clave ya existente",
                     "options": [
-                        "O(n)",
-                        "O(log n)",
-                        "O(1)",
-                        "O(n log n)"
+                        "Lanza una excepción",
+                        "Ignora la inserción sin aviso",
+                        "Crea una segunda entrada duplicada referenciando la primera",
+                        "Sobreescribe el valor"
                     ],
-                    "correctAnswerIndex": 2,
+                    "correctAnswerIndex": 3,
                     "dificultad": "Media",
                     "puntaje": 20,
-                    "explanation": "La respuesta correcta es O(log n) porque, en un max-heap, insertar un elemento aleatorio toma al menos log(n) tiempo. Esto se debe a que el heap se divide en dos partes en cada iteración para maximizar el valor del elemento."
+                    "explanation": "Por definición, un mapa no admite claves duplicadas. La clave actúa como identificador único, por lo que una nueva inserción con la misma clave reemplaza el valor asociado sin crear una segunda entrada."
                 },
                 {
                     "id": "N2_5_Media",
-                    "question": "¿Cuál es el resultado del recorrido in-orden en un árbol binario de búsqueda?",
+                    "question": "¿Por qué el tamaño de una tabla hash debe ser número primo?",
                     "options": [
-                        "Se obtiene el valor más pequeño del nodo raíz",
-                        "Se obtiene el valor más grande del nodo raíz",
-                        "Se obtienen los valores ordenados desde menor a mayor",
-                        "No se puede determinar sin más información"
+                        "Permite usar más memoria",
+                        "Acelera la función hash",
+                        "Reduce patrones repetitivos al aplicar el módulo",
+                        "Genera claves más seguras"
                     ],
                     "correctAnswerIndex": 2,
                     "dificultad": "Media",
                     "puntaje": 20,
-                    "explanation": "La respuesta correcta es 'Se obtienen los valores ordenados desde menor a mayor' porque en un árbol binario de búsqueda, el recorrido in-orden visita los nodos de manera que todos los valores del subárbol izquierdo son menores o iguales al valor del nodo y todos los valores del subárbol derecho son mayores que el valor del nodo, lo que permite obtener los valores ordenados de menor a mayor."
+                    "explanation": "La operación 'clave % tamaño' distribuye las claves en posiciones de la tabla. Si el tamaño comparte divisores comunes con los valores de las claves, muchas claves caen repetidamente en las mismas posiciones. Un número primo no tiene divisores comunes con la mayoría de los datos, distribuyendo las claves de forma más uniforme."
                 },
                 {
                     "id": "N2_6_Difícil",
-                    "question": "¿Cuál es el resultado de rotar una nodo raíz derecho a izquierda en un árbol AVL?",
+                    "question": "¿Cuándo se aplica una rotación doble en un AVL?",
                     "options": [
-                        "El balanceo se mantiene",
-                        "El balanceo cambia",
-                        "La estructura del árbol no cambia",
-                        "La profundidad del árbol aumenta"
+                        "Cuando la raiz tiene dos hijos",
+                        "Cuando un hijo está inclinado en dirección contraria",
+                        "Cuando el arbol tiene altura impar",
+                        "Siempre que se inserta un dato"
                     ],
-                    "correctAnswerIndex": 2,
+                    "correctAnswerIndex": 1,
                     "dificultad": "Difícil",
                     "puntaje": 30,
-                    "explanation": "La respuesta correcta es que la estructura del árbol cambia, ya que rotar a izquierda afecta el balanceo y puede cambiar la posición de los nodos."
+                    "explanation": "Una rotación simple resuelve desbalances 'rectos' (izquierda-izquierda o derecha-derecha). Cuando el hijo problemático está inclinado en sentido opuesto al desbalance (izquierda-derecha o derecha-izquierda), los nodos no están alineados y se requieren dos rotaciones consecutivas para corregir la estructura."
                 }
             ]
         },
@@ -188,87 +188,87 @@
             "questions": [
                 {
                     "id": "N3_1_Media",
-                    "question": "¿Cuál es el nombre técnico del algoritmo que busca un valor en un vector ordenado dividiendo a cada paso en dos partes igualmente grandes y comparando el valor buscado con el central?",
+                    "question": "¿Cuál es la complejidad del rehashing completo de una tabla hash?",
                     "options": [
-                        "Búsqueda secuencial",
-                        "Búsqueda binaria",
-                        "Algoritmo de búsqueda exponencial",
-                        "Búsqueda linear"
-                    ],
-                    "correctAnswerIndex": 1,
-                    "dificultad": "Media",
-                    "puntaje": 20,
-                    "explanation": "La búsqueda binaria es un algoritmo eficiente para buscar un valor en un vector ordenado, ya que divide a cada paso en dos partes igualmente grandes y compara el valor buscado con el central."
-                },
-                {
-                    "id": "N3_2_Difícil",
-                    "question": "¿Cuál es el método de representación más eficiente para un grafo espeso, en comparación con una lista enlazada?",
-                    "options": [
-                        "Representación de matriz",
-                        "Representación de lista enlazada",
-                        "Representación de lista circular",
-                        "Representación de grafo no dirigido"
-                    ],
-                    "correctAnswerIndex": 0,
-                    "dificultad": "Difícil",
-                    "puntaje": 30,
-                    "explanation": "La representación de matriz es más eficiente para un grafo espeso, ya que almacena la información de adyacencia de manera compacta y no requiere el uso de memoria dinámica como lo hace una lista enlazada."
-                },
-                {
-                    "id": "N3_3_Difícil",
-                    "question": "¿Cuál es el orden en el que se visitan los nodos durante un recorrido profundidad (DFS) en un árbol binario?",
-                    "options": [
-                        "orden alfabético",
-                        "orden de búsqueda",
-                        "orden de profundidad",
-                        "orden de ancho"
-                    ],
-                    "correctAnswerIndex": 2,
-                    "dificultad": "Difícil",
-                    "puntaje": 30,
-                    "explanation": "La respuesta correcta es 'orden de profundidad' porque durante un recorrido DFS, se visitan los nodos de manera que se exploran primero aquellos con una profundidad más grande y luego los más pequeños."
-                },
-                {
-                    "id": "N3_4_Difícil",
-                    "question": "¿Cuál es el paso inicial a realizar al introducir un nuevo nodo en un árbol binario de búsqueda?",
-                    "options": [
-                        "Insertar el valor del nodo como nodo raíz",
-                        "Comparar el valor del nuevo nodo con el raíz existente",
-                        "Buscar un nodo con el mismo valor que el nuevo nodo y eliminarlo",
-                        "Comprimir los valores del subárbol derecho hacia la izquierda"
-                    ],
-                    "correctAnswerIndex": 1,
-                    "dificultad": "Difícil",
-                    "puntaje": 30,
-                    "explanation": "La comparación con el raíz existente permite determinar dónde insertar el nuevo nodo para mantener la propiedad del árbol binario de búsqueda."
-                },
-                {
-                    "id": "N3_5_Difícil",
-                    "question": "¿Cuál es el tiempo complejo del algoritmo de bùsca binaria en un vector ordenado?",
-                    "options": [
-                        "O(n)",
                         "O(log n)",
-                        "O(n log n)",
+                        "o(n^2)",
+                        "O(n)",
                         "O(1)"
                     ],
                     "correctAnswerIndex": 2,
-                    "dificultad": "Difícil",
-                    "puntaje": 30,
-                    "explanation": "La búsqueda binaria en un vector ordenado es más rápida debido a la disposición ordenada de los elementos, lo que permite reducir el número de comparaciones necesarias para encontrar un elemento específico."
+                    "dificultad": "Media",
+                    "puntaje": 20,
+                    "explanation": "Al duplicar la tabla, cada uno de los n elementos existentes debe ser hasheado nuevamente e insertado en la nueva tabla. No hay atajos: cada reinserción es O(1) pero se repite n veces, resultando en O(n) total."
                 },
                 {
-                    "id": "N3_6_Difícil",
-                    "question": "¿Cuál es el requisito fundamental para que un hash function sea considerada perfectamente dispersa?",
+                    "id": "N3_2_Difícil",
+                    "question": "Tras eliminar la raíz de un max-heap, ¿Qué restaura la propiedad?",
                     "options": [
-                        "jU j m > 1",
-                        "jU j m ≥ 2",
-                        "jU j m ≤ 2",
-                        "jU j m es indeterminado"
+                        "Shift-up desde la raíz nueva",
+                        "Shift-down desde la raíz nueva",
+                        "Rotar el árbol hacia la izquierda",
+                        "Reinsertar todos los elementos"
+                    ],
+                    "correctAnswerIndex": 1,
+                    "dificultad": "Difícil",
+                    "puntaje": 30,
+                    "explanation": "Al eliminar la raíz, se coloca el último elemento del heap en su lugar. Ese elemento probablemente es pequeño, así que debe 'bajar' comparándose con sus hijos hasta encontrar su posición correcta. Shift-up sería incorrecto porque el elemento ya está en la cima."
+                },
+                {
+                    "id": "N3_3_Difícil",
+                    "question": "En un árbol B de orden m, ¿Cuántas claves máximo tiene un nodo?",
+                    "options": [
+                        "1 + m",
+                        "m",
+                        "m - 1",
+                        "2m"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Difícil",
+                    "puntaje": 30,
+                    "explanation": "Por definición formal, un árbol B de orden m permite hasta m hijos por nodo, lo que implica m − 1 claves por nodo. Las m claves se usan como separadores entre los m+1 subárboles, por lo que un nodo con m claves tendría m+1 hijos, excediendo el orden."
+                },
+                {
+                    "id": "N3_4_Difícil",
+                    "question": "¿Qué estructura usa BFS internamente?",
+                    "options": [
+                        "Pila",
+                        "Árbol binario",
+                        "Tabla Hash",
+                        "Cola"
+                    ],
+                    "correctAnswerIndex": 3,
+                    "dificultad": "Difícil",
+                    "puntaje": 30,
+                    "explanation": "BFS explora nodos nivel por nivel. Al visitar un nodo, sus vecinos se agregan al final de la cola y se procesan en orden de llegada. Esto garantiza que todos los nodos a distancia k se visiten antes que los de distancia k+1."
+                },
+                {
+                    "id": "N3_5_Difícil",
+                    "question": "Al eliminar en árbol B y quedar con pocas claves, ¿qué ocurre?",
+                    "options": [
+                        "se fuciona con un hermano o se redistribuye",
+                        "Se inserta una clave nula como placeholder",
+                        "Se elimina el nodo completo",
+                        "Se sube la clave al nodo padre"
                     ],
                     "correctAnswerIndex": 0,
                     "dificultad": "Difícil",
                     "puntaje": 30,
-                    "explanation": "La perfección en la dispersión de una función hash requiere que haya al menos dos claves con el mismo valor de hash, lo cual es garantizado cuando jU j m > 1."
+                    "explanation": "Un árbol B exige que todo nodo (excepto la raíz) tenga al menos ⌈m/2⌉ − 1 claves. Si tras eliminar un nodo queda por debajo de ese mínimo, se intenta redistribuir claves con un hermano adyacente a través del padre. Si el hermano tampoco tiene claves de sobra, se fusionan ambos nodos en uno solo."
+                },
+                {
+                    "id": "N3_6_Difícil",
+                    "question": "¿Cómo implementar una pila que retorne el mínimo en O(1)?",
+                    "options": [
+                        "Ordenar la pila en cada push",
+                        "Usar una cola auxiliar",
+                        "Usar una pila auxiliar",
+                        "Guardar el mínimo en un arreglo separado"
+                    ],
+                    "correctAnswerIndex": 2,
+                    "dificultad": "Difícil",
+                    "puntaje": 30,
+                    "explanation": "Se mantiene una segunda pila donde cada posición almacena el mínimo acumulado hasta ese nivel. Al hacer push, se compara el nuevo elemento con el tope de la pila auxiliar y se apila el menor. Al hacer pop, se desapila ambas pilas simultáneamente. Así el mínimo actual siempre está en O(1)."
                 }
             ]
         }

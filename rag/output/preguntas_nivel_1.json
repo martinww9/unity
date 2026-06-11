@@ -1,89 +1,90 @@
 {
     "nivel": 1,
+    "status": "completed",
     "questions": [
         {
             "id": "N1_1_Fácil",
-            "question": "¿Cuál es el nombre del tipo de dato que se considera a un entero y una matriz de manera equivalente?",
+            "question": "¿Qué TDA modela de mejor manera la acción deshacer (ctrl + z)?",
             "options": [
-                "Tipo de dato estructurado",
-                "Tipo de dato primitivo",
-                "Tipo de dato simple",
-                "Tipo de dato contiguo"
+                "Cola",
+                "Pila",
+                "Arreglo",
+                "Arbol"
             ],
-            "correctAnswerIndex": 2,
+            "correctAnswerIndex": 1,
             "dificultad": "Fácil",
             "puntaje": 10,
-            "explanation": "La respuesta correcta es el tipo de dato simple porque se considera que un entero y una matriz pueden ser tratados como datos individuales."
+            "explanation": "La respuesta correcta es la pila, debido a que cada acción se va apilando de manera LIFO y al deshacer simplemente se elimina la última acción almacenada."
         },
         {
             "id": "N1_2_Fácil",
-            "question": "¿Cuál es el tipo de dato abstracto (TDA) que se utiliza en las estructuras de datos contiguas?",
+            "question": "¿Cómo se invierte el contenido de una cola?",
             "options": [
-                "TDA Punto",
-                "TDA Lista",
-                "TDA Vector",
-                "TDA Pila"
+                "Con otra cola",
+                "Con una pila",
+                "Con un arreglo",
+                "Con recursión"
             ],
-            "correctAnswerIndex": 3,
+            "correctAnswerIndex": 1,
             "dificultad": "Fácil",
             "puntaje": 10,
-            "explanation": "Una estructura de datos contigua utiliza un TDA Pila para almacenar y manipular sus elementos."
+            "explanation": "Se desencolan todos los elementos y se van apilando. Al vaciar la cola, se desapila de vuelta a la cola: el último en salir de la cola fue el primero en la pila, logrando el orden inverso."
         },
         {
             "id": "N1_3_Fácil",
-            "question": "¿Cuál es el efecto de asignar un valor a la variable X SIG(X) en una lista enlazada?",
+            "question": "¿Qué TDA es ideal para el historial de la página actual en un navegador?",
             "options": [
-                "Se obtiene el nodo anterior de la lista.",
-                "Se obtiene el nodo siguiente de la lista.",
-                "Se avanza hacia el nodo siguiente de la lista y se almacena su valor.",
-                "No afecta el valor del puntero X."
+                "Arbol",
+                "Cola",
+                "Lista enlazada",
+                "Pila"
             ],
-            "correctAnswerIndex": 2,
+            "correctAnswerIndex": 3,
             "dificultad": "Fácil",
             "puntaje": 10,
-            "explanation": "La asignación de X SIG(X) avanza hacia el nodo siguiente en la lista y se almacena su valor, permitiendo avanzar a lo largo de toda la lista."
+            "explanation": "Cada página visitada se apila. Al presionar 'atrás', se extrae la más reciente. El orden de acceso inverso (última visitada = primera en salir) es exactamente LIFO."
         },
         {
-            "id": "N1_4_Media",
-            "question": "¿Cuando se inserta un nuevo nodo en una lista doblemente enlazada, ¿qué pasa con los nodos disponibles?",
+            "id": "N1_4_Fácil",
+            "question": "¿Cuál es la complejidad de buscar en un arreglo no ordenado?",
             "options": [
-                "Se elimina el nodo que coincide con la información a ser ingresada",
-                "Se agrega al final de la lista",
-                "Se utiliza para guardar el nodo antes de ser insertado",
-                "No se afecta el conjunto de nodos disponibles"
+                "O(1)",
+                "O(n!)",
+                "O(n log n)",
+                "O(n)"
             ],
-            "correctAnswerIndex": 2,
-            "dificultad": "Media",
-            "puntaje": 20,
-            "explanation": "La respuesta correcta es que los nodos disponibles se utilizan para guardar el nodo antes de ser insertado en la lista, para luego ser reutilizados si se eliminaran otros elementos."
+            "correctAnswerIndex": 3,
+            "dificultad": "Fácil",
+            "puntaje": 10,
+            "explanation": "Sin orden no hay atajo disponible, en el peor de los casos debemos recorrer los n elementos del arreglo."
         },
         {
             "id": "N1_5_Media",
-            "question": "¿Cuál es el algoritmo que determina si una pila está vacía, y cómo se utiliza en los procedimientos PUSH y POP?",
+            "question": "¿Cuál es la complejidad de iterar dos bucles anidados de n iteraciones cada uno?",
             "options": [
-                "Utiliza un puntero de la pila para comparar su valor con la longitud máxima del vector S",
-                "Verifica si el elemento en la cima de la pila es igual a 0",
-                "Compara el valor del puntero de la pila con la base de ésta",
-                "No se proporciona ninguna condición específica para determinar si una pila está vacía"
-            ],
-            "correctAnswerIndex": 3,
-            "dificultad": "Media",
-            "puntaje": 20,
-            "explanation": "La pregunta requiere que el estudiante comprenda la implementación de pilas y la condición para determinar si una pila está vacía, lo cual se menciona en el contexto de estudio."
-        },
-        {
-            "id": "N1_6_Media",
-            "question": "¿Qué sucede con el orden de los elementos en una cola FIFO si se intenta eliminar un elemento más rápido que se agrega?",
-            "options": [
-                "Se mantienen ordenados",
-                "No se afectan los demás elementos",
-                "Se invertirán la posición",
-                "No se puede eliminar"
+                "O(n!)",
+                "O(log n)",
+                "O(n^2)",
+                "O(2n)"
             ],
             "correctAnswerIndex": 2,
             "dificultad": "Media",
             "puntaje": 20,
-            "explanation": "La respuesta correcta es 'Se invertirán la posición', porque en una cola FIFO, los elementos que se agregan están en el final y los que se eliminan están al principio. Si se intenta eliminar un elemento más rápido que se agrega, el orden de los elementos se invierte."
+            "explanation": "El bucle externo se ejecutará n veces y por cada iteración el bucle interno debe ejecutarce otras n veces, resultando en n x n = n^2 operaciones"
+        },
+        {
+            "id": "N1_6_Media",
+            "question": "¿Dónde es más eficiente hacer PUSH/POP en una lista enlazada?",
+            "options": [
+                "Es igual en cualquier parte",
+                "Head (Al inicio)",
+                "Exactamente al medio",
+                "Tail (al final)"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Media",
+            "puntaje": 20,
+            "explanation": "Insertar o eliminar en Head toma O(1), solo requiere redirigir el puntero. Hacerlo al final requiere recorrer toda la lista hasta Tail, tomando O(n), a menos que preexista un puntero a Tail."
         }
     ]
 }

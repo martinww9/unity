@@ -23,8 +23,8 @@ public class Player : NetworkBehaviour
     [Networked] private bool NetAnimWalking { get; set; }
     [Networked] private bool NetAnimRunning { get; set; }
 
-    private const float CycleDuration = 10f;
-    private const float ResponseWindow = 5f;
+    private const float CycleDuration = 15f;
+    private const float ResponseWindow = 10f;
     private const float StunDuration = 3f;
 
     private int _lastDisplayedQuestionIndex = -1;

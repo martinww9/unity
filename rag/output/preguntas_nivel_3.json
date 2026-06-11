@@ -1,89 +1,90 @@
 {
     "nivel": 3,
+    "status": "completed",
     "questions": [
         {
             "id": "N3_1_Media",
-            "question": "¿Cuál es el nombre técnico del algoritmo que busca un valor en un vector ordenado dividiendo a cada paso en dos partes igualmente grandes y comparando el valor buscado con el central?",
+            "question": "¿Cuál es la complejidad del rehashing completo de una tabla hash?",
             "options": [
-                "Búsqueda secuencial",
-                "Búsqueda binaria",
-                "Algoritmo de búsqueda exponencial",
-                "Búsqueda linear"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Media",
-            "puntaje": 20,
-            "explanation": "La búsqueda binaria es un algoritmo eficiente para buscar un valor en un vector ordenado, ya que divide a cada paso en dos partes igualmente grandes y compara el valor buscado con el central."
-        },
-        {
-            "id": "N3_2_Difícil",
-            "question": "¿Cuál es el método de representación más eficiente para un grafo espeso, en comparación con una lista enlazada?",
-            "options": [
-                "Representación de matriz",
-                "Representación de lista enlazada",
-                "Representación de lista circular",
-                "Representación de grafo no dirigido"
-            ],
-            "correctAnswerIndex": 0,
-            "dificultad": "Difícil",
-            "puntaje": 30,
-            "explanation": "La representación de matriz es más eficiente para un grafo espeso, ya que almacena la información de adyacencia de manera compacta y no requiere el uso de memoria dinámica como lo hace una lista enlazada."
-        },
-        {
-            "id": "N3_3_Difícil",
-            "question": "¿Cuál es el orden en el que se visitan los nodos durante un recorrido profundidad (DFS) en un árbol binario?",
-            "options": [
-                "orden alfabético",
-                "orden de búsqueda",
-                "orden de profundidad",
-                "orden de ancho"
-            ],
-            "correctAnswerIndex": 2,
-            "dificultad": "Difícil",
-            "puntaje": 30,
-            "explanation": "La respuesta correcta es 'orden de profundidad' porque durante un recorrido DFS, se visitan los nodos de manera que se exploran primero aquellos con una profundidad más grande y luego los más pequeños."
-        },
-        {
-            "id": "N3_4_Difícil",
-            "question": "¿Cuál es el paso inicial a realizar al introducir un nuevo nodo en un árbol binario de búsqueda?",
-            "options": [
-                "Insertar el valor del nodo como nodo raíz",
-                "Comparar el valor del nuevo nodo con el raíz existente",
-                "Buscar un nodo con el mismo valor que el nuevo nodo y eliminarlo",
-                "Comprimir los valores del subárbol derecho hacia la izquierda"
-            ],
-            "correctAnswerIndex": 1,
-            "dificultad": "Difícil",
-            "puntaje": 30,
-            "explanation": "La comparación con el raíz existente permite determinar dónde insertar el nuevo nodo para mantener la propiedad del árbol binario de búsqueda."
-        },
-        {
-            "id": "N3_5_Difícil",
-            "question": "¿Cuál es el tiempo complejo del algoritmo de bùsca binaria en un vector ordenado?",
-            "options": [
-                "O(n)",
                 "O(log n)",
-                "O(n log n)",
+                "o(n^2)",
+                "O(n)",
                 "O(1)"
             ],
             "correctAnswerIndex": 2,
-            "dificultad": "Difícil",
-            "puntaje": 30,
-            "explanation": "La búsqueda binaria en un vector ordenado es más rápida debido a la disposición ordenada de los elementos, lo que permite reducir el número de comparaciones necesarias para encontrar un elemento específico."
+            "dificultad": "Media",
+            "puntaje": 20,
+            "explanation": "Al duplicar la tabla, cada uno de los n elementos existentes debe ser hasheado nuevamente e insertado en la nueva tabla. No hay atajos: cada reinserción es O(1) pero se repite n veces, resultando en O(n) total."
         },
         {
-            "id": "N3_6_Difícil",
-            "question": "¿Cuál es el requisito fundamental para que un hash function sea considerada perfectamente dispersa?",
+            "id": "N3_2_Difícil",
+            "question": "Tras eliminar la raíz de un max-heap, ¿Qué restaura la propiedad?",
             "options": [
-                "jU j m > 1",
-                "jU j m ≥ 2",
-                "jU j m ≤ 2",
-                "jU j m es indeterminado"
+                "Shift-up desde la raíz nueva",
+                "Shift-down desde la raíz nueva",
+                "Rotar el árbol hacia la izquierda",
+                "Reinsertar todos los elementos"
+            ],
+            "correctAnswerIndex": 1,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "Al eliminar la raíz, se coloca el último elemento del heap en su lugar. Ese elemento probablemente es pequeño, así que debe 'bajar' comparándose con sus hijos hasta encontrar su posición correcta. Shift-up sería incorrecto porque el elemento ya está en la cima."
+        },
+        {
+            "id": "N3_3_Difícil",
+            "question": "En un árbol B de orden m, ¿Cuántas claves máximo tiene un nodo?",
+            "options": [
+                "1 + m",
+                "m",
+                "m - 1",
+                "2m"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "Por definición formal, un árbol B de orden m permite hasta m hijos por nodo, lo que implica m − 1 claves por nodo. Las m claves se usan como separadores entre los m+1 subárboles, por lo que un nodo con m claves tendría m+1 hijos, excediendo el orden."
+        },
+        {
+            "id": "N3_4_Difícil",
+            "question": "¿Qué estructura usa BFS internamente?",
+            "options": [
+                "Pila",
+                "Árbol binario",
+                "Tabla Hash",
+                "Cola"
+            ],
+            "correctAnswerIndex": 3,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "BFS explora nodos nivel por nivel. Al visitar un nodo, sus vecinos se agregan al final de la cola y se procesan en orden de llegada. Esto garantiza que todos los nodos a distancia k se visiten antes que los de distancia k+1."
+        },
+        {
+            "id": "N3_5_Difícil",
+            "question": "Al eliminar en árbol B y quedar con pocas claves, ¿qué ocurre?",
+            "options": [
+                "se fuciona con un hermano o se redistribuye",
+                "Se inserta una clave nula como placeholder",
+                "Se elimina el nodo completo",
+                "Se sube la clave al nodo padre"
             ],
             "correctAnswerIndex": 0,
             "dificultad": "Difícil",
             "puntaje": 30,
-            "explanation": "La perfección en la dispersión de una función hash requiere que haya al menos dos claves con el mismo valor de hash, lo cual es garantizado cuando jU j m > 1."
+            "explanation": "Un árbol B exige que todo nodo (excepto la raíz) tenga al menos ⌈m/2⌉ − 1 claves. Si tras eliminar un nodo queda por debajo de ese mínimo, se intenta redistribuir claves con un hermano adyacente a través del padre. Si el hermano tampoco tiene claves de sobra, se fusionan ambos nodos en uno solo."
+        },
+        {
+            "id": "N3_6_Difícil",
+            "question": "¿Cómo implementar una pila que retorne el mínimo en O(1)?",
+            "options": [
+                "Ordenar la pila en cada push",
+                "Usar una cola auxiliar",
+                "Usar una pila auxiliar",
+                "Guardar el mínimo en un arreglo separado"
+            ],
+            "correctAnswerIndex": 2,
+            "dificultad": "Difícil",
+            "puntaje": 30,
+            "explanation": "Se mantiene una segunda pila donde cada posición almacena el mínimo acumulado hasta ese nivel. Al hacer push, se compara el nuevo elemento con el tope de la pila auxiliar y se apila el menor. Al hacer pop, se desapila ambas pilas simultáneamente. Así el mínimo actual siempre está en O(1)."
         }
     ]
 }
