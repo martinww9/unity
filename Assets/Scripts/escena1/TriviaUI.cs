@@ -17,6 +17,7 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private TMP_Text[] _opcionesTexts;
     [SerializeField] private TMP_Text _timerText;
     [SerializeField] private TMP_Text _textoNivel;
+    [SerializeField] private TMP_Text _textoPuntajeHud;
 
     [HideInInspector] public int LastSelectedIndex = -1;
 
@@ -53,6 +54,15 @@ public class TriviaUI : MonoBehaviour
     private bool _generandoPreguntas = false;
     private int _localScore;
     private int _localTotal;
+    private int _localN1Correct;
+    private int _localN2Correct;
+    private int _localN3Correct;
+    private bool _levelBlockedMessageActive;
+    private int _indicatorLevel = 1;
+    private int _blockedCorrect;
+    private int _blockedTotal;
+    private int _blockedLevelQuestionIndex;
+    private int _blockedLastAnsweredIndex;
     private Coroutine _refreshLobbyCoroutine;
     private NetworkRunner _lobbyRunner;
     private float _lastLobbyDiagLogTime = -10f;
@@ -61,6 +71,42 @@ public class TriviaUI : MonoBehaviour
     {
         Instance = this;
         HideAllLocalPanels();
+        ResolveHudTexts();
+    }
+
+    private void Update()
+    {
+        if (_levelBlockedMessageActive && _blockedTotal > 0)
+            RefreshBlockedMessage(_blockedCorrect, _blockedTotal, _blockedLevelQuestionIndex, _blockedLastAnsweredIndex);
+    }
+
+    private void ResolveHudTexts()
+    {
+        if (_textoNivel == null)
+            _textoNivel = FindHudText("TextoNivel", "textoNivel", "Nivel");
+
+        if (_textoPuntajeHud == null)
+            _textoPuntajeHud = FindHudText("PuntajeHud", "TextoPuntaje", "puntajeHud", "Puntaje");
+
+        var legacyMeta = GameObject.Find("MetaBloqueada");
+        if (legacyMeta != null)
+            legacyMeta.SetActive(false);
+    }
+
+    private TMP_Text FindHudText(params string[] names)
+    {
+        foreach (string name in names)
+        {
+            var go = GameObject.Find(name);
+            if (go != null)
+            {
+                var tmp = go.GetComponent<TMP_Text>();
+                if (tmp != null)
+                    return tmp;
+            }
+        }
+
+        return null;
     }
 
     private void HideAllLocalPanels()
@@ -376,17 +422,113 @@ public class TriviaUI : MonoBehaviour
         }
     }
 
+    public bool IsLevelBlockedMessageActive => _levelBlockedMessageActive;
+
     public void UpdateLevelIndicator(int level)
     {
+        if (Player.Local != null)
+        {
+            UpdateLevelHud(
+                level,
+                Player.Local.GetCurrentLevelCorrectCount(),
+                QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(level) : 0);
+            return;
+        }
+
+        _indicatorLevel = level;
+        if (_levelBlockedMessageActive)
+            return;
+
+        ResolveHudTexts();
         if (_textoNivel != null)
-            _textoNivel.text = LevelTopics.FormatIndicator(level);
+            _textoNivel.text = BuildLevelIndicatorText(level);
     }
 
-    public void RegistrarFinDeCarreraLocal(int score, int total)
+    public void UpdateLevelHud(int level, int correct, int total)
+    {
+        _indicatorLevel = level;
+        if (_levelBlockedMessageActive)
+            return;
+
+        ResolveHudTexts();
+        if (_textoNivel == null) return;
+
+        if (total <= 0)
+        {
+            _textoNivel.text = BuildLevelIndicatorText(level);
+            return;
+        }
+
+        _textoNivel.text = BuildLevelIndicatorText(level, LevelProgressRules.FormatHudProgress(level, correct, total));
+    }
+
+    private static string BuildLevelIndicatorText(int level, string subtitle = null)
+    {
+        string baseText = LevelTopics.FormatIndicator(level);
+        if (string.IsNullOrEmpty(subtitle))
+            return baseText;
+        return $"{baseText}\n\n{subtitle}";
+    }
+
+    public void UpdateLevelProgress(int level, int correct, int total)
+    {
+        UpdateLevelHud(level, correct, total);
+    }
+
+    public void UpdateScoreDisplay(int score, int maxScore)
+    {
+        ResolveHudTexts();
+        if (_textoPuntajeHud == null) return;
+        _textoPuntajeHud.text = ScoringRules.FormatScoreHud(score, maxScore);
+    }
+
+    public void ShowLevelBlockedMessage(int correct, int total, int levelQuestionIndex, int lastAnsweredIndex = -1)
+    {
+        _levelBlockedMessageActive = true;
+        RefreshBlockedMessage(correct, total, levelQuestionIndex, lastAnsweredIndex);
+    }
+
+    public void HideLevelBlockedMessage()
+    {
+        _levelBlockedMessageActive = false;
+
+        int correct = Player.Local != null ? Player.Local.GetCurrentLevelCorrectCount() : _blockedCorrect;
+        int total = QuestionManager.Instance != null && Player.Local != null
+            ? QuestionManager.Instance.GetQuestionCount(Player.Local.CurrentLevel)
+            : _blockedTotal;
+        UpdateLevelHud(_indicatorLevel, correct, total);
+    }
+
+    public void RefreshBlockedMessage(int correct, int total, int levelQuestionIndex, int lastAnsweredIndex = -1)
+    {
+        if (total <= 0)
+            return;
+
+        _blockedCorrect = correct;
+        _blockedTotal = total;
+        _blockedLevelQuestionIndex = levelQuestionIndex;
+        _blockedLastAnsweredIndex = lastAnsweredIndex;
+
+        if (Player.Local != null)
+            _indicatorLevel = Player.Local.CurrentLevel;
+
+        ResolveHudTexts();
+        if (_textoNivel == null) return;
+
+        string blockedMessage = LevelProgressRules.FormatBlockedAtGoalMessage(
+            correct, total, levelQuestionIndex, lastAnsweredIndex);
+        _textoNivel.text = BuildLevelIndicatorText(_indicatorLevel, blockedMessage);
+    }
+
+    public void RegistrarFinDeCarreraLocal(int score, int total, int n1Correct = 0, int n2Correct = 0, int n3Correct = 0)
     {
         _localScore = score;
         _localTotal = total;
+        _localN1Correct = n1Correct;
+        _localN2Correct = n2Correct;
+        _localN3Correct = n3Correct;
         _cachedFeedbackData = null;
+        HideLevelBlockedMessage();
 
         if (JuegoUI.Instance != null)
             JuegoUI.Instance.ShowFinCarreraPhase();
@@ -394,13 +536,14 @@ public class TriviaUI : MonoBehaviour
         {
             Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
             Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPuntaje", false);
             Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
             Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
             Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
         }
 
         ShowOnlyFinishPanel();
-        ApplyFinishPanelContent(score, total);
+        ApplyFinishPanelContent(score, total, n1Correct, n2Correct, n3Correct);
 
         if (_botonVerFeedback != null)
         {
@@ -502,6 +645,7 @@ public class TriviaUI : MonoBehaviour
         {
             Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
             Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPuntaje", false);
             Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
             Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
             Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
@@ -1030,13 +1174,14 @@ public class TriviaUI : MonoBehaviour
         {
             Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
             Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPuntaje", false);
             Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
             Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
             Spawner.SetJuegoCanvasVisible("CanvasPodio", GameManager.HasFinishers);
         }
 
         ShowOnlyFinishPanel();
-        ApplyFinishPanelContent(_localScore, _localTotal);
+        ApplyFinishPanelContent(_localScore, _localTotal, _localN1Correct, _localN2Correct, _localN3Correct);
 
         if (GameManager.HasFinishers)
             ShowPodiumSidebar();
@@ -1060,6 +1205,7 @@ public class TriviaUI : MonoBehaviour
             {
                 Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
                 Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+                Spawner.SetJuegoCanvasVisible("CanvasPuntaje", false);
                 Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
                 Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
                 Spawner.SetJuegoCanvasVisible("CanvasPodio", true);
@@ -1068,7 +1214,7 @@ public class TriviaUI : MonoBehaviour
             if (panelFeedbackFinal == null || !panelFeedbackFinal.activeSelf)
             {
                 ShowOnlyFinishPanel();
-                ApplyFinishPanelContent(_localScore, _localTotal);
+                ApplyFinishPanelContent(_localScore, _localTotal, _localN1Correct, _localN2Correct, _localN3Correct);
             }
         }
         else
@@ -1079,6 +1225,7 @@ public class TriviaUI : MonoBehaviour
             {
                 Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
                 Spawner.SetJuegoCanvasVisible("CanvasTimer", true);
+                Spawner.SetJuegoCanvasVisible("CanvasPuntaje", true);
                 Spawner.SetJuegoCanvasVisible("CanvasPreguntas", true);
                 Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", false);
                 Spawner.SetJuegoCanvasVisible("CanvasPodio", true);
@@ -1092,17 +1239,21 @@ public class TriviaUI : MonoBehaviour
     {
         Player[] todos = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
         var terminaron = System.Linq.Enumerable.ToList(
-            System.Linq.Enumerable.OrderBy(
-                System.Linq.Enumerable.Where(todos, p => p.PlayerRank > 0),
-                p => p.PlayerRank
+            System.Linq.Enumerable.ThenBy(
+                System.Linq.Enumerable.OrderByDescending(
+                    System.Linq.Enumerable.Where(todos, p => p.State == EPlayerState.Finished),
+                    p => p.PuntajeObtenido
+                ),
+                p => p.FinishOrder
             )
         );
 
         string contenido = "";
-        foreach (var p in terminaron)
+        for (int i = 0; i < terminaron.Count; i++)
         {
+            var p = terminaron[i];
             string tu = (Player.Local != null && p.Object.InputAuthority == Player.Local.Object.InputAuthority) ? " (TÚ)" : "";
-            contenido += $"{p.PlayerRank}º Lugar - {p.GetDisplayName()}{tu}\n";
+            contenido += $"{i + 1}º Lugar - {p.GetDisplayName()} ({p.PuntajeObtenido} pts){tu}\n";
         }
 
         if (_textoPodio != null) _textoPodio.text = contenido;
@@ -1111,6 +1262,7 @@ public class TriviaUI : MonoBehaviour
     public void StartGameUI()
     {
         PlayerQuestionHistory.Clear();
+        HideLevelBlockedMessage();
         HideAllLocalPanels();
 
         if (JuegoUI.Instance != null)
@@ -1121,11 +1273,20 @@ public class TriviaUI : MonoBehaviour
             Spawner.SetJuegoCanvasVisible("CanvasPodio", false);
             Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", false);
             Spawner.SetJuegoCanvasVisible("CanvasTimer", true);
+            Spawner.SetJuegoCanvasVisible("CanvasPuntaje", true);
             Spawner.SetJuegoCanvasVisible("CanvasPreguntas", true);
         }
 
         if (Player.Local != null)
-            UpdateLevelIndicator(Player.Local.CurrentLevel);
+        {
+            UpdateLevelHud(
+                Player.Local.CurrentLevel,
+                Player.Local.GetCurrentLevelCorrectCount(),
+                QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(Player.Local.CurrentLevel) : 0);
+            UpdateScoreDisplay(
+                Player.Local.PuntajeObtenido,
+                QuestionManager.Instance != null ? QuestionManager.Instance.GetMaxPossibleScore() : 0);
+        }
     }
 
     private void ResolveFinishPanelTexts()
@@ -1148,7 +1309,7 @@ public class TriviaUI : MonoBehaviour
         }
     }
 
-    private void ApplyFinishPanelContent(int score, int total)
+    private void ApplyFinishPanelContent(int score, int total, int n1Correct = 0, int n2Correct = 0, int n3Correct = 0)
     {
         ResolveFinishPanelTexts();
 
@@ -1156,6 +1317,26 @@ public class TriviaUI : MonoBehaviour
             _textoEsperaLlegada.text = "Esperando que termine el resto";
 
         if (_textoPuntajeLlegada != null)
-            _textoPuntajeLlegada.text = $"Puntaje final: {score}/{total}";
+            _textoPuntajeLlegada.text = BuildFinishPanelText(score, total, n1Correct, n2Correct, n3Correct);
+    }
+
+    private string BuildFinishPanelText(int score, int total, int n1Correct, int n2Correct, int n3Correct)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Puntaje final: {score}/{total}");
+
+        int n1Total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(1) : 0;
+        int n2Total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(2) : 0;
+        int n3Total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(3) : 0;
+
+        if (n1Total > 0 || n2Total > 0 || n3Total > 0)
+        {
+            sb.Append("Por nivel: ");
+            if (n1Total > 0) sb.Append($"N1: {n1Correct}/{n1Total}");
+            if (n2Total > 0) sb.Append(n1Total > 0 ? $" · N2: {n2Correct}/{n2Total}" : $"N2: {n2Correct}/{n2Total}");
+            if (n3Total > 0) sb.Append((n1Total > 0 || n2Total > 0) ? $" · N3: {n3Correct}/{n3Total}" : $"N3: {n3Correct}/{n3Total}");
+        }
+
+        return sb.ToString().TrimEnd();
     }
 }

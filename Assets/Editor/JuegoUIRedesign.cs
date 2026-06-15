@@ -16,6 +16,7 @@ public static class JuegoUIRedesign
 
         StyleCanvasRoot("CanvasLobby", JuegoUI.SortLobby, StyleCanvasLobby);
         StyleCanvasRoot("CanvasTimer", JuegoUI.SortTimer, StyleCanvasTimer);
+        StyleCanvasRoot("CanvasPuntaje", JuegoUI.SortPuntaje, StyleCanvasPuntaje);
         StyleCanvasRoot("CanvasPreguntas", JuegoUI.SortPreguntas, StyleCanvasPreguntas);
         StyleCanvasRoot("CanvasFinCarrera", JuegoUI.SortFinCarrera, StyleCanvasFinCarrera);
         StyleCanvasRoot("CanvasPodio", JuegoUI.SortPodio, StyleCanvasPodio);
@@ -84,6 +85,17 @@ public static class JuegoUIRedesign
         var timer = UITheme.FindDeep(panel, "timer");
         if (timer != null)
             UITheme.StyleHudText(timer.GetComponent<TMP_Text>());
+
+        var progreso = canvasRoot.Find("ProgresoNivel");
+        if (progreso != null)
+            UITheme.StyleHudText(progreso.GetComponent<TMP_Text>());
+    }
+
+    static void StyleCanvasPuntaje(Transform canvasRoot)
+    {
+        var puntaje = canvasRoot.Find("PuntajeHud");
+        if (puntaje != null)
+            UITheme.StyleHudText(puntaje.GetComponent<TMP_Text>());
     }
 
     static void StyleCanvasPreguntas(Transform canvasRoot)

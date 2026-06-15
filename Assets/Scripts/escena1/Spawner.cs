@@ -17,6 +17,7 @@ public class Spawner : MonoBehaviour, INetworkRunnerCallbacks
     {
         "CanvasLobby",
         "CanvasTimer",
+        "CanvasPuntaje",
         "CanvasPreguntas",
         "CanvasPodio",
         "CanvasFinCarrera"

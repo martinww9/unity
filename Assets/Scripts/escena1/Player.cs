@@ -14,8 +14,13 @@ public class Player : NetworkBehaviour
     [Networked] private TickTimer _movementResumeLock { get; set; }
     [Networked] public int LastAnsweredIndex { get; set; } = -1;
     [Networked] public int PlayerRank { get; set; }
+    [Networked] public int FinishOrder { get; set; }
     [Networked] public int RespuestasCorrectas { get; set; }
     [Networked] public int PuntajeObtenido { get; set; }
+    [Networked] public int CurrentLevelCorrectCount { get; set; }
+    [Networked] public int Level1CorrectCount { get; set; }
+    [Networked] public int Level2CorrectCount { get; set; }
+    [Networked] public int Level3CorrectCount { get; set; }
     [Networked, OnChangedRender(nameof(OnDisplayNameChanged))]
     public NetworkString<_32> DisplayName { get; set; }
     [Networked] private float _yaw { get; set; }
@@ -41,6 +46,8 @@ public class Player : NetworkBehaviour
     private NetworkCharacterController _cc;
     private GameManager _gameManager;
     private bool _pendingStabilize;
+    private bool _blockedAtGoal;
+    private bool _levelBlockedMessageShown;
 
     private void Awake()
     {
@@ -240,8 +247,15 @@ public class Player : NetworkBehaviour
         LevelCycleTimer = TickTimer.None;
         State = EPlayerState.Advancing;
         PlayerRank = 0;
+        FinishOrder = 0;
         RespuestasCorrectas = 0;
         PuntajeObtenido = 0;
+        CurrentLevelCorrectCount = 0;
+        Level1CorrectCount = 0;
+        Level2CorrectCount = 0;
+        Level3CorrectCount = 0;
+        _blockedAtGoal = false;
+        _levelBlockedMessageShown = false;
         _lastDisplayedQuestionIndex = -1;
 
         Transform spawn = LevelManager.Instance != null ? LevelManager.Instance.GetSpawnPoint(1) : null;
@@ -430,6 +444,8 @@ public class Player : NetworkBehaviour
         {
             State = EPlayerState.Advancing;
             RespuestasCorrectas++;
+            CurrentLevelCorrectCount++;
+            IncrementLevelCorrectCount(CurrentLevel);
             PuntajeObtenido += currentQ.puntaje;
         }
         else
@@ -466,11 +482,75 @@ public class Player : NetworkBehaviour
         NetAnimRunning = running;
     }
 
-    public void CompleteLevel(int level)
+    private void IncrementLevelCorrectCount(int level)
+    {
+        switch (level)
+        {
+            case 1: Level1CorrectCount++; break;
+            case 2: Level2CorrectCount++; break;
+            case 3: Level3CorrectCount++; break;
+        }
+    }
+
+    public int GetCurrentLevelCorrectCount() => CurrentLevelCorrectCount;
+
+    public int GetLevelCorrectCount(int level)
+    {
+        switch (level)
+        {
+            case 1: return Level1CorrectCount;
+            case 2: return Level2CorrectCount;
+            case 3: return Level3CorrectCount;
+            default: return 0;
+        }
+    }
+
+    public bool HasReachedLastQuestionOfLevel()
+    {
+        int total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
+        return total > 0 && LevelQuestionIndex >= total - 1;
+    }
+
+    public int GetRemainingQuestionOpportunities()
+    {
+        int total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
+        return LevelProgressRules.GetRemainingQuestionOpportunities(LevelQuestionIndex, total, LastAnsweredIndex);
+    }
+
+    public bool CanStillReachPassAtCurrentLevel()
+    {
+        int total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0;
+        return LevelProgressRules.CanStillReachPassThreshold(CurrentLevelCorrectCount, total, LevelQuestionIndex, LastAnsweredIndex);
+    }
+
+    public void TryCompleteLevel(int level)
     {
         if (!Object.HasStateAuthority) return;
         if (State == EPlayerState.Finished) return;
         if (CurrentLevel != level) return;
+
+        int total = QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(level) : 0;
+        bool lastQuestionReached = HasReachedLastQuestionOfLevel();
+
+        if (!LevelProgressRules.CanAdvance(CurrentLevelCorrectCount, total, lastQuestionReached))
+        {
+            _blockedAtGoal = true;
+            if (!_levelBlockedMessageShown)
+            {
+                _levelBlockedMessageShown = true;
+                RPC_ShowLevelBlocked(CurrentLevelCorrectCount, total, LevelQuestionIndex, LastAnsweredIndex);
+            }
+            return;
+        }
+
+        _blockedAtGoal = false;
+        _levelBlockedMessageShown = false;
+        RPC_HideLevelBlocked();
+
+        ResolveGameManager();
+        int position = _gameManager != null ? _gameManager.RegisterLevelCompletion(level) : 1;
+        int bonus = ScoringRules.GetLevelCompletionBonusByPosition(level, position);
+        PuntajeObtenido += bonus;
 
         if (level < 3)
         {
@@ -486,14 +566,26 @@ public class Player : NetworkBehaviour
             CurrentLevel = nextLevel;
             LevelQuestionIndex = -1;
             LastAnsweredIndex = -1;
+            CurrentLevelCorrectCount = 0;
             _lastDisplayedQuestionIndex = -1;
             LevelCycleTimer = TickTimer.None;
             State = EPlayerState.Advancing;
             return;
         }
 
-        int rank = GameManager.Instance.RegisterPlayerFinish();
-        FinishRace(rank);
+        FinishRace();
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
+    private void RPC_ShowLevelBlocked(int correct, int total, int levelQuestionIndex, int lastAnsweredIndex)
+    {
+        TriviaUI.Instance?.ShowLevelBlockedMessage(correct, total, levelQuestionIndex, lastAnsweredIndex);
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
+    private void RPC_HideLevelBlocked()
+    {
+        TriviaUI.Instance?.HideLevelBlockedMessage();
     }
 
     private void UpdateLocalTriviaHud(bool matchStarted)
@@ -514,7 +606,20 @@ public class Player : NetworkBehaviour
             return;
         }
 
-        ui.UpdateLevelIndicator(CurrentLevel);
+        ui.UpdateLevelHud(
+            CurrentLevel,
+            CurrentLevelCorrectCount,
+            QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0);
+        ui.UpdateScoreDisplay(
+            PuntajeObtenido,
+            QuestionManager.Instance != null ? QuestionManager.Instance.GetMaxPossibleScore() : 0);
+
+        if (TriviaUI.Instance != null && TriviaUI.Instance.IsLevelBlockedMessageActive)
+            ui.RefreshBlockedMessage(
+                CurrentLevelCorrectCount,
+                QuestionManager.Instance != null ? QuestionManager.Instance.GetQuestionCount(CurrentLevel) : 0,
+                LevelQuestionIndex,
+                LastAnsweredIndex);
 
         if (!HasActiveQuestion())
         {
@@ -565,20 +670,25 @@ public class Player : NetworkBehaviour
         }
     }
 
-    public void FinishRace(int rank)
+    public void FinishRace()
     {
-        State = EPlayerState.Finished;
-        PlayerRank = rank;
+        if (!Object.HasStateAuthority) return;
 
-        RPC_NotificarLlegada(PuntajeObtenido);
+        ResolveGameManager();
+        if (_gameManager != null)
+            _gameManager.RegisterPlayerFinish(this);
+
+        State = EPlayerState.Finished;
+
+        RPC_NotificarLlegada(PuntajeObtenido, Level1CorrectCount, Level2CorrectCount, Level3CorrectCount);
         RPC_ShowPodiumToAll();
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
-    public void RPC_NotificarLlegada(int puntajeObtenido)
+    public void RPC_NotificarLlegada(int puntajeObtenido, int n1Correct, int n2Correct, int n3Correct)
     {
         int puntajeMaximo = QuestionManager.Instance != null ? QuestionManager.Instance.GetMaxPossibleScore() : 0;
-        TriviaUI.Instance?.RegistrarFinDeCarreraLocal(puntajeObtenido, puntajeMaximo);
+        TriviaUI.Instance?.RegistrarFinDeCarreraLocal(puntajeObtenido, puntajeMaximo, n1Correct, n2Correct, n3Correct);
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]

@@ -127,7 +127,7 @@ public class QuestionManager : NetworkBehaviour
             foreach (var q in questions)
                 total += q.puntaje;
         }
-        return total;
+        return total + ScoringRules.GetMaxLevelCompletionBonus();
     }
 
     private static void ApplyNgrokHeaders(UnityWebRequest request)

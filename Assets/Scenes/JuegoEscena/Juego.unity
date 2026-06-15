@@ -37392,8 +37392,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 645.3409, y: -38.856796}
-  m_SizeDelta: {x: 617.71, y: 226.3667}
+  m_AnchoredPosition: {x: 645.3409, y: -59.7}
+  m_SizeDelta: {x: 617.71, y: 325}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &261966379
 MonoBehaviour:
@@ -55153,6 +55153,9 @@ MonoBehaviour:
   _FinishedPlayersCount: 0
   _IsRaceOver: 0
   _FeedbacksCompleted: 0
+  _Level1Completions: 0
+  _Level2Completions: 0
+  _Level3Completions: 0
 --- !u!4 &394856891
 Transform:
   m_ObjectHideFlags: 0
@@ -55210,6 +55213,7 @@ MonoBehaviour:
   - {fileID: 1964885010}
   _timerText: {fileID: 1296031698}
   _textoNivel: {fileID: 1139590899}
+  _textoPuntajeHud: {fileID: 0}
   LastSelectedIndex: -1
   _playerListContainer: {fileID: 635376080}
   _playerEntryPrefab: {fileID: 7993345406040397821, guid: c4b17cea3e3417b4d8a8def3927908ea, type: 3}
@@ -55244,6 +55248,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::JuegoUI
   _canvasLobby: {fileID: 878661221}
   _canvasTimer: {fileID: 1281850719}
+  _canvasPuntaje: {fileID: 0}
   _canvasPreguntas: {fileID: 1644178675}
   _canvasStun: {fileID: 2079258810}
   _canvasPodio: {fileID: 648995608}
@@ -147518,7 +147523,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: -517.3944, w: -125.675735}
+  m_margin: {x: 0, y: 0, z: -517.3944, w: -220.3959}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

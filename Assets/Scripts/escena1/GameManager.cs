@@ -10,6 +10,9 @@ public class GameManager : NetworkBehaviour
     [Networked] public int FinishedPlayersCount { get; set; }
     [Networked] public bool IsRaceOver { get; set; }
     [Networked] public int FeedbacksCompleted { get; set; }
+    [Networked] public int Level1Completions { get; set; }
+    [Networked] public int Level2Completions { get; set; }
+    [Networked] public int Level3Completions { get; set; }
 
     private ChangeDetector _changeDetector;
 
@@ -75,26 +78,75 @@ public class GameManager : NetworkBehaviour
 
     private void ResetAllPlayersForMatch()
     {
+        if (Object.HasStateAuthority)
+        {
+            Level1Completions = 0;
+            Level2Completions = 0;
+            Level3Completions = 0;
+            FinishedPlayersCount = 0;
+            IsRaceOver = false;
+        }
+
         Player[] players = FindObjectsByType<Player>(FindObjectsSortMode.None);
         foreach (var player in players)
             player.ResetForMatch();
     }
 
-    public int RegisterPlayerFinish()
+    public int RegisterLevelCompletion(int level)
     {
-        if (Object.HasStateAuthority)
+        if (!Object.HasStateAuthority)
+            return 0;
+
+        switch (level)
         {
-            FinishedPlayersCount++;
-
-            int totalPlayers = 0;
-            foreach (var _ in Runner.ActivePlayers) totalPlayers++;
-
-            if (FinishedPlayersCount >= totalPlayers)
-                IsRaceOver = true;
-
-            return FinishedPlayersCount;
+            case 1: Level1Completions++; return Level1Completions;
+            case 2: Level2Completions++; return Level2Completions;
+            case 3: Level3Completions++; return Level3Completions;
+            default: return 0;
         }
-        return 0;
+    }
+
+    public void RegisterPlayerFinish(Player player)
+    {
+        if (!Object.HasStateAuthority || player == null)
+            return;
+
+        FinishedPlayersCount++;
+        player.FinishOrder = FinishedPlayersCount;
+
+        int totalPlayers = 0;
+        foreach (var _ in Runner.ActivePlayers) totalPlayers++;
+
+        if (FinishedPlayersCount >= totalPlayers)
+            IsRaceOver = true;
+
+        RecalculatePodiumRanks();
+    }
+
+    public void RecalculatePodiumRanks()
+    {
+        if (!Object.HasStateAuthority)
+            return;
+
+        Player[] players = FindObjectsByType<Player>(FindObjectsSortMode.None);
+        var finished = new System.Collections.Generic.List<Player>();
+
+        foreach (var player in players)
+        {
+            if (player.State == EPlayerState.Finished)
+                finished.Add(player);
+        }
+
+        finished.Sort((a, b) =>
+        {
+            int scoreCompare = b.PuntajeObtenido.CompareTo(a.PuntajeObtenido);
+            if (scoreCompare != 0)
+                return scoreCompare;
+            return a.FinishOrder.CompareTo(b.FinishOrder);
+        });
+
+        for (int i = 0; i < finished.Count; i++)
+            finished[i].PlayerRank = i + 1;
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -113,6 +165,9 @@ public class GameManager : NetworkBehaviour
             FinishedPlayersCount = 0;
             IsRaceOver = false;
             FeedbacksCompleted = 0;
+            Level1Completions = 0;
+            Level2Completions = 0;
+            Level3Completions = 0;
 
             if (QuestionManager.Instance != null)
                 QuestionManager.Instance.RequestNewGeneration();

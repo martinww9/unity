@@ -2,6 +2,8 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using TMPro;
+using UnityEngine.UI;
 
 public static class JuegoUICanvasSetup
 {
@@ -20,6 +22,8 @@ public static class JuegoUICanvasSetup
         var podio = GameObject.Find("CanvasPodio");
         var finCarrera = GameObject.Find("CanvasFinCarrera");
         var stun = GameObject.Find("CanvasStun");
+        var puntaje = EnsureCanvasPuntaje();
+        EnsureTimerHudTexts(timer);
 
         if (lobby == null || timer == null || preguntas == null || podio == null || finCarrera == null)
         {
@@ -41,7 +45,7 @@ public static class JuegoUICanvasSetup
         if (juegoUi == null)
             juegoUi = triviaUi.gameObject.AddComponent<JuegoUI>();
 
-        juegoUi.EditorAssignCanvasRoots(lobby, timer, preguntas, podio, finCarrera, stun);
+        juegoUi.EditorAssignCanvasRoots(lobby, timer, preguntas, podio, finCarrera, stun, puntaje);
         juegoUi.ApplySortingOrders();
         juegoUi.HideAllCanvases();
 
@@ -49,7 +53,77 @@ public static class JuegoUICanvasSetup
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
 
-        Debug.Log("Juego UI: canvases enlazados, sorting aplicado y todos desactivados al inicio.");
+        Debug.Log("Juego UI: canvases enlazados (incl. CanvasPuntaje), sorting aplicado y todos desactivados al inicio.");
+    }
+
+    static GameObject EnsureCanvasPuntaje()
+    {
+        var existing = GameObject.Find("CanvasPuntaje");
+        if (existing != null)
+        {
+            EnsureHudTextChild(existing.transform, "PuntajeHud", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -72f), "Puntaje: 0/0");
+            return existing;
+        }
+
+        var canvasGo = new GameObject("CanvasPuntaje", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        var canvas = canvasGo.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = JuegoUI.SortPuntaje;
+
+        var scaler = canvasGo.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        EnsureHudTextChild(canvasGo.transform, "PuntajeHud", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -72f), "Puntaje: 0/0");
+        return canvasGo;
+    }
+
+    static void EnsureTimerHudTexts(GameObject timerCanvas)
+    {
+        if (timerCanvas == null)
+            return;
+
+        EnsureHudTextChild(timerCanvas.transform, "ProgresoNivel", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -108f), "N1: 0/0 correctas — Necesitas 0 para avanzar (60%)");
+    }
+
+    static TMP_Text EnsureHudTextChild(
+        Transform parent,
+        string name,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 anchoredPosition,
+        string defaultText,
+        float fontSize = 22f,
+        bool active = true)
+    {
+        Transform existing = parent.Find(name);
+        GameObject textGo;
+        if (existing != null)
+        {
+            textGo = existing.gameObject;
+        }
+        else
+        {
+            textGo = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+            textGo.transform.SetParent(parent, false);
+        }
+
+        var rt = textGo.GetComponent<RectTransform>();
+        rt.anchorMin = anchorMin;
+        rt.anchorMax = anchorMax;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = anchoredPosition;
+        rt.sizeDelta = new Vector2(900f, 48f);
+
+        var tmp = textGo.GetComponent<TextMeshProUGUI>();
+        tmp.text = defaultText;
+        tmp.fontSize = fontSize;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        tmp.raycastTarget = false;
+
+        textGo.SetActive(active);
+        return tmp;
     }
 }
 #endif

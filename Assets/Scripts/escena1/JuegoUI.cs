@@ -9,6 +9,7 @@ public class JuegoUI : MonoBehaviour
 
     public const int SortLobby = 10;
     public const int SortTimer = 15;
+    public const int SortPuntaje = 16;
     public const int SortPreguntas = 20;
     public const int SortStun = 25;
     public const int SortFinCarrera = 30;
@@ -16,6 +17,7 @@ public class JuegoUI : MonoBehaviour
 
     [SerializeField] private GameObject _canvasLobby;
     [SerializeField] private GameObject _canvasTimer;
+    [SerializeField] private GameObject _canvasPuntaje;
     [SerializeField] private GameObject _canvasPreguntas;
     [SerializeField] private GameObject _canvasStun;
     [SerializeField] private GameObject _canvasPodio;
@@ -44,6 +46,7 @@ public class JuegoUI : MonoBehaviour
     {
         SetCanvasActive(_canvasLobby, false);
         SetCanvasActive(_canvasTimer, false);
+        SetCanvasActive(_canvasPuntaje, false);
         SetCanvasActive(_canvasPreguntas, false);
         SetCanvasActive(_canvasPodio, false);
         SetCanvasActive(_canvasFinCarrera, false);
@@ -60,6 +63,7 @@ public class JuegoUI : MonoBehaviour
         HideAllCanvases();
         SetCanvasActive(_canvasLobby, false);
         SetCanvasActive(_canvasTimer, true);
+        SetCanvasActive(_canvasPuntaje, true);
         SetCanvasActive(_canvasPreguntas, true);
     }
 
@@ -80,6 +84,7 @@ public class JuegoUI : MonoBehaviour
         SetCanvasActive(_canvasLobby, false);
         SetCanvasActive(_canvasTimer, true);
         SetCanvasActive(_canvasPreguntas, true);
+        SetCanvasActive(_canvasPuntaje, true);
         SetCanvasActive(_canvasPodio, true);
         SetCanvasActive(_canvasFinCarrera, false);
     }
@@ -89,6 +94,7 @@ public class JuegoUI : MonoBehaviour
         SetCanvasActive(_canvasLobby, false);
         SetCanvasActive(_canvasTimer, false);
         SetCanvasActive(_canvasPreguntas, false);
+        SetCanvasActive(_canvasPuntaje, false);
         SetCanvasActive(_canvasFinCarrera, true);
         SetCanvasActive(_canvasPodio, true);
     }
@@ -102,6 +108,9 @@ public class JuegoUI : MonoBehaviour
                 break;
             case "CanvasTimer":
                 SetCanvasActive(_canvasTimer, active);
+                break;
+            case "CanvasPuntaje":
+                SetCanvasActive(_canvasPuntaje, active);
                 break;
             case "CanvasPreguntas":
                 SetCanvasActive(_canvasPreguntas, active);
@@ -130,6 +139,7 @@ public class JuegoUI : MonoBehaviour
     {
         ApplySort(_canvasLobby, SortLobby);
         ApplySort(_canvasTimer, SortTimer);
+        ApplySort(_canvasPuntaje, SortPuntaje);
         ApplySort(_canvasPreguntas, SortPreguntas);
         ApplySort(_canvasStun, SortStun);
         ApplySort(_canvasFinCarrera, SortFinCarrera);
@@ -151,7 +161,8 @@ public class JuegoUI : MonoBehaviour
         GameObject preguntas,
         GameObject podio,
         GameObject finCarrera,
-        GameObject stun = null)
+        GameObject stun = null,
+        GameObject puntaje = null)
     {
         _canvasLobby = lobby;
         _canvasTimer = timer;
@@ -160,6 +171,8 @@ public class JuegoUI : MonoBehaviour
         _canvasFinCarrera = finCarrera;
         if (stun != null)
             _canvasStun = stun;
+        if (puntaje != null)
+            _canvasPuntaje = puntaje;
     }
 #endif
 }
