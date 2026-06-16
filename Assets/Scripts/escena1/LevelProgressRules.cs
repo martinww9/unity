@@ -1,4 +1,4 @@
-using System;
+using System.Text;
 using UnityEngine;
 
 public static class LevelProgressRules
@@ -75,5 +75,49 @@ public static class LevelProgressRules
         }
 
         return "Ya no puedes alcanzar el 60%. Espera la última pregunta del nivel para continuar.";
+    }
+
+    public static bool DidPassFinalExam(int correctAnswers, int totalQuestionsSeen)
+    {
+        if (totalQuestionsSeen <= 0)
+            return false;
+        return correctAnswers >= GetRequiredCorrect(totalQuestionsSeen);
+    }
+
+    public static int GetCorrectPercentage(int correctAnswers, int totalQuestionsSeen)
+    {
+        if (totalQuestionsSeen <= 0)
+            return 0;
+        return Mathf.RoundToInt((float)correctAnswers / totalQuestionsSeen * 100f);
+    }
+
+    public static string FormatApprovalMessage(bool passed, int correct, int totalSeen)
+    {
+        int percentage = GetCorrectPercentage(correct, totalSeen);
+        var sb = new StringBuilder();
+
+        if (passed)
+        {
+            sb.AppendLine("¡Felicitaciones! ¡Aprobaste!");
+            sb.AppendLine();
+            sb.AppendLine($"{correct} de {totalSeen} correctas ({percentage}%)");
+            sb.Append("Superaste el 60% requerido.");
+        }
+        else
+        {
+            sb.AppendLine("¡Buen esfuerzo! Sigue practicando.");
+            sb.AppendLine();
+            sb.AppendLine($"{correct} de {totalSeen} correctas ({percentage}%)");
+            sb.Append("Necesitabas al menos el 60% para aprobar.");
+        }
+
+        return sb.ToString();
+    }
+
+    public static string FormatApprovalResultLine(bool passed, int correct, int totalSeen)
+    {
+        string status = passed ? "APROBADO" : "NO APROBADO";
+        int percentage = GetCorrectPercentage(correct, totalSeen);
+        return $"Resultado: {status} — {correct}/{totalSeen} correctas ({percentage}%)";
     }
 }

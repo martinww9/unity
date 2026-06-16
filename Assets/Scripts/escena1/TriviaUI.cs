@@ -1313,8 +1313,29 @@ public class TriviaUI : MonoBehaviour
     {
         ResolveFinishPanelTexts();
 
+        int totalCorrect = n1Correct + n2Correct + n3Correct;
+        int totalSeen = QuestionManager.Instance != null
+            ? PlayerQuestionHistory.GetSeenQuestions(QuestionManager.Instance).Length
+            : 0;
+
+        bool? passed = totalSeen > 0
+            ? LevelProgressRules.DidPassFinalExam(totalCorrect, totalSeen)
+            : (bool?)null;
+
         if (_textoEsperaLlegada != null)
-            _textoEsperaLlegada.text = "Esperando que termine el resto";
+        {
+            if (passed.HasValue)
+            {
+                _textoEsperaLlegada.text = LevelProgressRules.FormatApprovalMessage(passed.Value, totalCorrect, totalSeen);
+                _textoEsperaLlegada.color = passed.Value
+                    ? new Color(0.2f, 0.78f, 0.42f, 1f)
+                    : new Color(0.95f, 0.65f, 0.2f, 1f);
+            }
+            else
+            {
+                _textoEsperaLlegada.text = "Esperando que termine el resto";
+            }
+        }
 
         if (_textoPuntajeLlegada != null)
             _textoPuntajeLlegada.text = BuildFinishPanelText(score, total, n1Correct, n2Correct, n3Correct);
@@ -1336,6 +1357,9 @@ public class TriviaUI : MonoBehaviour
             if (n2Total > 0) sb.Append(n1Total > 0 ? $" · N2: {n2Correct}/{n2Total}" : $"N2: {n2Correct}/{n2Total}");
             if (n3Total > 0) sb.Append((n1Total > 0 || n2Total > 0) ? $" · N3: {n3Correct}/{n3Total}" : $"N3: {n3Correct}/{n3Total}");
         }
+
+        sb.AppendLine();
+        sb.Append("Esperando que termine el resto");
 
         return sb.ToString().TrimEnd();
     }
