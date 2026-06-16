@@ -9,6 +9,7 @@ public class GameManager : NetworkBehaviour
     [Networked] public bool IsMatchStarted { get; set; }
     [Networked] public int FinishedPlayersCount { get; set; }
     [Networked] public bool IsRaceOver { get; set; }
+    [Networked] public bool CeremonyStarted { get; set; }
     [Networked] public int FeedbacksCompleted { get; set; }
     [Networked] public int Level1Completions { get; set; }
     [Networked] public int Level2Completions { get; set; }
@@ -19,6 +20,9 @@ public class GameManager : NetworkBehaviour
     private void Awake()
     {
         if (Instance == null) Instance = this;
+
+        if (GetComponent<PodiumCeremonyManager>() == null)
+            gameObject.AddComponent<PodiumCeremonyManager>();
     }
 
     public static bool IsMatchStartedSafe
@@ -63,6 +67,11 @@ public class GameManager : NetworkBehaviour
                     if (FinishedPlayersCount > 0 && TriviaUI.Instance != null)
                         TriviaUI.Instance.ShowPodiumForAll();
                     break;
+
+                case nameof(IsRaceOver):
+                    if (IsRaceOver)
+                        PodiumCeremonyManager.Instance?.TryBeginCeremony();
+                    break;
             }
         }
     }
@@ -85,7 +94,10 @@ public class GameManager : NetworkBehaviour
             Level3Completions = 0;
             FinishedPlayersCount = 0;
             IsRaceOver = false;
+            CeremonyStarted = false;
         }
+
+        PodiumCeremonyManager.Instance?.ResetCeremony();
 
         Player[] players = FindObjectsByType<Player>(FindObjectsSortMode.None);
         foreach (var player in players)
@@ -121,6 +133,9 @@ public class GameManager : NetworkBehaviour
             IsRaceOver = true;
 
         RecalculatePodiumRanks();
+
+        if (IsRaceOver)
+            PodiumCeremonyManager.Instance?.TryBeginCeremony();
     }
 
     public void RecalculatePodiumRanks()
@@ -164,10 +179,13 @@ public class GameManager : NetworkBehaviour
             IsMatchStarted = false;
             FinishedPlayersCount = 0;
             IsRaceOver = false;
+            CeremonyStarted = false;
             FeedbacksCompleted = 0;
             Level1Completions = 0;
             Level2Completions = 0;
             Level3Completions = 0;
+
+            PodiumCeremonyManager.Instance?.ResetCeremony();
 
             if (QuestionManager.Instance != null)
                 QuestionManager.Instance.RequestNewGeneration();

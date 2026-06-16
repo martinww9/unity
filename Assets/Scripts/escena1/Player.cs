@@ -2,7 +2,7 @@ using Fusion;
 using UnityEngine;
 using Unity.Cinemachine;
 
-public enum EPlayerState { Responding, Stunned, Advancing, Finished }
+public enum EPlayerState { Responding, Stunned, Advancing, Finished, PodiumCeremony }
 
 public class Player : NetworkBehaviour
 {
@@ -326,9 +326,15 @@ public class Player : NetworkBehaviour
                 case EPlayerState.Finished:
                     HandleMovement(data);
                     break;
+
+                case EPlayerState.PodiumCeremony:
+                    ResetCharacterMotion();
+                    SetLocomotionAnim(false, false);
+                    ApplyLookInput(data);
+                    break;
             }
 
-            if (State != EPlayerState.Responding)
+            if (State != EPlayerState.Responding && State != EPlayerState.PodiumCeremony)
                 ApplyLookInput(data);
         }
     }
@@ -599,10 +605,11 @@ public class Player : NetworkBehaviour
             return;
         }
 
-        if (State == EPlayerState.Finished)
+        if (State == EPlayerState.Finished || State == EPlayerState.PodiumCeremony)
         {
             ui.ClearTimer();
-            ui.ShowWaiting();
+            if (State == EPlayerState.Finished)
+                ui.ShowWaiting();
             return;
         }
 
@@ -670,15 +677,34 @@ public class Player : NetworkBehaviour
         }
     }
 
+    public void EnterPodiumCeremony(Transform spawn)
+    {
+        if (!Object.HasStateAuthority || spawn == null || _cc == null)
+            return;
+
+        _cc.Teleport(spawn.position, spawn.rotation);
+        _yaw = spawn.rotation.eulerAngles.y;
+        StabilizeCharacterPhysics();
+        ResetCharacterMotion();
+        SetLocomotionAnim(false, false);
+        State = EPlayerState.PodiumCeremony;
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
+    public void RPC_ShowPodiumCeremonyMessage(int rank, int score)
+    {
+        TriviaUI.Instance?.ShowPodiumCeremonyMessage(rank, score);
+    }
+
     public void FinishRace()
     {
         if (!Object.HasStateAuthority) return;
 
+        State = EPlayerState.Finished;
+
         ResolveGameManager();
         if (_gameManager != null)
             _gameManager.RegisterPlayerFinish(this);
-
-        State = EPlayerState.Finished;
 
         RPC_NotificarLlegada(PuntajeObtenido, Level1CorrectCount, Level2CorrectCount, Level3CorrectCount);
         RPC_ShowPodiumToAll();

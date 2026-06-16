@@ -35,6 +35,8 @@ public class TriviaUI : MonoBehaviour
     [SerializeField] private TMP_Text _textoPodio;
     [SerializeField] private TMP_Text _textoEsperaLlegada;
     [SerializeField] private TMP_Text _textoPuntajeLlegada;
+    [SerializeField] private GameObject _panelCeremoniaPodio;
+    [SerializeField] private TMP_Text _textoCeremonia;
 
     [Header("Retroalimentación IA (Final de Carrera)")]
     [SerializeField] private GameObject panelFeedbackFinal;
@@ -72,6 +74,7 @@ public class TriviaUI : MonoBehaviour
         Instance = this;
         HideAllLocalPanels();
         ResolveHudTexts();
+        ResolveCeremonyPanelTexts();
     }
 
     private void Update()
@@ -115,6 +118,7 @@ public class TriviaUI : MonoBehaviour
         if (_panelPrincipal != null) _panelPrincipal.SetActive(false);
         if (_panelLlegaste != null) _panelLlegaste.SetActive(false);
         if (_panelPodio != null) _panelPodio.SetActive(false);
+        if (_panelCeremoniaPodio != null) _panelCeremoniaPodio.SetActive(false);
         if (panelFeedbackFinal != null) panelFeedbackFinal.SetActive(false);
     }
 
@@ -307,7 +311,10 @@ public class TriviaUI : MonoBehaviour
         if (panelFeedbackFinal != null && panelFeedbackFinal.activeSelf)
             return true;
         if (_panelLlegaste != null && _panelLlegaste.activeSelf
-            && Player.Local != null && Player.Local.State == EPlayerState.Finished)
+            && Player.Local != null
+            && (Player.Local.State == EPlayerState.Finished || Player.Local.State == EPlayerState.PodiumCeremony))
+            return true;
+        if (_panelCeremoniaPodio != null && _panelCeremoniaPodio.activeSelf)
             return true;
         return false;
     }
@@ -529,6 +536,9 @@ public class TriviaUI : MonoBehaviour
         _localN3Correct = n3Correct;
         _cachedFeedbackData = null;
         HideLevelBlockedMessage();
+
+        if (IsRaceOverForCeremony())
+            return;
 
         if (JuegoUI.Instance != null)
             JuegoUI.Instance.ShowFinCarreraPhase();
@@ -1195,7 +1205,14 @@ public class TriviaUI : MonoBehaviour
 
     public void ShowPodiumForAll()
     {
-        bool localFinished = Player.Local != null && Player.Local.State == EPlayerState.Finished;
+        if (IsRaceOverForCeremony())
+        {
+            ShowPodiumSidebar();
+            return;
+        }
+
+        bool localFinished = Player.Local != null
+            && (Player.Local.State == EPlayerState.Finished || Player.Local.State == EPlayerState.PodiumCeremony);
 
         if (localFinished)
         {
@@ -1233,6 +1250,33 @@ public class TriviaUI : MonoBehaviour
         }
 
         ShowPodiumSidebar();
+    }
+
+    public void ShowPodiumCeremonyMessage(int rank, int score)
+    {
+        ResolveCeremonyPanelTexts();
+
+        if (JuegoUI.Instance != null)
+            JuegoUI.Instance.ShowPodiumCeremonyPhase();
+        else
+        {
+            Spawner.SetJuegoCanvasVisible("CanvasLobby", false);
+            Spawner.SetJuegoCanvasVisible("CanvasTimer", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPuntaje", false);
+            Spawner.SetJuegoCanvasVisible("CanvasPreguntas", false);
+            Spawner.SetJuegoCanvasVisible("CanvasFinCarrera", true);
+            Spawner.SetJuegoCanvasVisible("CanvasPodio", true);
+        }
+
+        if (_panelLlegaste != null)
+            _panelLlegaste.SetActive(false);
+        if (_panelCeremoniaPodio != null)
+            _panelCeremoniaPodio.SetActive(true);
+        if (_textoCeremonia != null)
+            _textoCeremonia.text = BuildCeremonyMessage(rank, score);
+
+        ShowPodiumSidebar();
+        UpdatePodiumLive();
     }
 
     public void UpdatePodiumLive()
@@ -1335,6 +1379,9 @@ public class TriviaUI : MonoBehaviour
             {
                 _textoEsperaLlegada.text = "Esperando que termine el resto";
             }
+
+            if (!IsRaceOverForCeremony())
+                _textoEsperaLlegada.text += "\n\nEsperando a los demás para la ceremonia final...";
         }
 
         if (_textoPuntajeLlegada != null)
@@ -1359,8 +1406,56 @@ public class TriviaUI : MonoBehaviour
         }
 
         sb.AppendLine();
-        sb.Append("Esperando que termine el resto");
+        if (!IsRaceOverForCeremony())
+            sb.Append("Esperando a los demás para la ceremonia final...");
+        else
+            sb.Append("Esperando que termine el resto");
 
         return sb.ToString().TrimEnd();
+    }
+
+    private void ResolveCeremonyPanelTexts()
+    {
+        if (_panelCeremoniaPodio == null)
+        {
+            var panel = GameObject.Find("PanelCeremoniaPodio");
+            if (panel != null)
+                _panelCeremoniaPodio = panel;
+        }
+
+        if (_textoCeremonia == null && _panelCeremoniaPodio != null)
+        {
+            var texto = _panelCeremoniaPodio.transform.Find("TextoCeremonia");
+            if (texto != null)
+                _textoCeremonia = texto.GetComponent<TMP_Text>();
+        }
+
+        if (_textoCeremonia == null)
+        {
+            var texto = GameObject.Find("TextoCeremonia");
+            if (texto != null)
+                _textoCeremonia = texto.GetComponent<TMP_Text>();
+        }
+    }
+
+    private static bool IsRaceOverForCeremony()
+    {
+        var gm = GameManager.Instance;
+        return gm != null && gm.Object != null && gm.Object.IsValid
+            && (gm.IsRaceOver || gm.CeremonyStarted);
+    }
+
+    private static string BuildCeremonyMessage(int rank, int score)
+    {
+        if (rank == 1)
+            return $"¡Felicitaciones, campeón!\nTerminaste 1º con {score} pts.";
+
+        if (rank >= 2 && rank <= 3)
+            return $"¡Felicitaciones!\nQuedaste en el top 3 ({rank}º) con {score} pts.";
+
+        if (rank > 3)
+            return $"Buen esfuerzo.\nQuedaste {rank}º — sigue intentando para la próxima.";
+
+        return $"Ceremonia final\nPuntaje: {score} pts.";
     }
 }
